@@ -3,6 +3,9 @@ import pickle
 import pandas as pd
 import numpy as np
 
+# Set page layout
+st.set_page_config(page_title="Diabetes Prediction App", layout="wide")
+
 # Load model and scaler (cached for performance)
 @st.cache_resource
 def load_model_scaler():
@@ -14,8 +17,6 @@ def load_model_scaler():
 
 model, scaler = load_model_scaler()
 
-# Set page layout
-st.set_page_config(page_title="Diabetes Prediction App", layout="wide")
 
 st.title("🧪 Diabetes Risk Prediction")
 st.markdown("""
