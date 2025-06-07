@@ -14,76 +14,53 @@ def load_model_scaler():
 
 model, scaler = load_model_scaler()
 
-st.title("Diabetes Prediction")
+st.set_page_config(page_title="Diabetes Prediction", layout="centered")
+st.title("🧪 Diabetes Prediction App")
 
-# Define input widgets for each feature except target
-# Binary/categorical features: HighBP, HighChol, CholCheck, Smoker, Stroke,
-# HeartDiseaseorAttack, PhysActivity, Fruits, Veggies, HvyAlcoholConsump,
-# AnyHealthcare, NoDocbcCost, DiffWalk, Sex
-# Numerical: BMI, MentHlth, PhysHlth, Age, Education, Income, GenHlth (assumed ordinal)
+st.markdown("""
+Enter the required health indicator values below.  
+All inputs should be **numeric** (e.g., 0 or 1 for Yes/No, or numerical values like BMI).
+""")
 
-# Helper function for yes/no to int
-def yes_no_input(label):
-    return 1 if st.radio(label, ("No", "Yes")) == "Yes" else 0
+# All inputs via text input
+inputs = {}
+feature_list = [
+    'HighBP', 'HighChol', 'CholCheck', 'BMI', 'Smoker', 'Stroke',
+    'HeartDiseaseorAttack', 'PhysActivity', 'Fruits', 'Veggies',
+    'HvyAlcoholConsump', 'AnyHealthcare', 'NoDocbcCost', 'GenHlth',
+    'MentHlth', 'PhysHlth', 'DiffWalk', 'Sex', 'Age', 'Education', 'Income'
+]
 
-HighBP = yes_no_input("High Blood Pressure (HighBP)?")
-HighChol = yes_no_input("High Cholesterol (HighChol)?")
-CholCheck = yes_no_input("Cholesterol Check in past 5 years (CholCheck)?")
-Smoker = yes_no_input("Current Smoker (Smoker)?")
-Stroke = yes_no_input("Had Stroke (Stroke)?")
-HeartDiseaseorAttack = yes_no_input("Heart Disease or Attack (HeartDiseaseorAttack)?")
-PhysActivity = yes_no_input("Physical Activity in past 30 days (PhysActivity)?")
-Fruits = yes_no_input("Eat Fruits (Fruits)?")
-Veggies = yes_no_input("Eat Vegetables (Veggies)?")
-HvyAlcoholConsump = yes_no_input("Heavy Alcohol Consumption (HvyAlcoholConsump)?")
-AnyHealthcare = yes_no_input("Have Any Healthcare Coverage (AnyHealthcare)?")
-NoDocbcCost = yes_no_input("Could not see doctor due to cost (NoDocbcCost)?")
-DiffWalk = yes_no_input("Have Difficulty Walking (DiffWalk)?")
+# Input section
+with st.form("diabetes_form"):
+    for feature in feature_list:
+        inputs[feature] = st.text_input(f"{feature}:", key=feature)
 
-Sex = st.selectbox("Sex (1=Male, 0=Female)", options=[0, 1], index=1)
+    submit = st.form_submit_button("Predict Diabetes")
 
-# Numeric inputs
-BMI = st.number_input("BMI", min_value=10.0, max_value=60.0, value=25.0, step=0.1)
-MentHlth = st.number_input("Mental Health (days not good in past 30)", min_value=0, max_value=30, value=0)
-PhysHlth = st.number_input("Physical Health (days not good in past 30)", min_value=0, max_value=30, value=0)
-Age = st.slider("Age (in years)", 18, 100, 40)
-Education = st.selectbox("Education Level (1=Never attended, ... 6=College Graduate)", options=list(range(1,7)), index=3)
-Income = st.selectbox("Income Level (1=Less than $10k ... 8=$75k or more)", options=list(range(1,9)), index=4)
-GenHlth = st.selectbox("General Health (1=Excellent ... 5=Poor)", options=list(range(1,6)), index=1)
+# On form submission
+if submit:
+    try:
+        # Convert input strings to float values
+        input_values = [float(inputs[feature]) for feature in feature_list]
 
-# Put inputs into a dataframe row in correct column order
-input_data = pd.DataFrame({
-    'HighBP': [HighBP],
-    'HighChol': [HighChol],
-    'CholCheck': [CholCheck],
-    'BMI': [BMI],
-    'Smoker': [Smoker],
-    'Stroke': [Stroke],
-    'HeartDiseaseorAttack': [HeartDiseaseorAttack],
-    'PhysActivity': [PhysActivity],
-    'Fruits': [Fruits],
-    'Veggies': [Veggies],
-    'HvyAlcoholConsump': [HvyAlcoholConsump],
-    'AnyHealthcare': [AnyHealthcare],
-    'NoDocbcCost': [NoDocbcCost],
-    'GenHlth': [GenHlth],
-    'MentHlth': [MentHlth],
-    'PhysHlth': [PhysHlth],
-    'DiffWalk': [DiffWalk],
-    'Sex': [Sex],
-    'Age': [Age],
-    'Education': [Education],
-    'Income': [Income]
-})
+        # Prepare DataFrame
+        input_df = pd.DataFrame([input_values], columns=feature_list)
 
-# Scale numeric columns before prediction
-num_cols = ['BMI', 'MentHlth', 'PhysHlth']
-input_data[num_cols] = scaler.transform(input_data[num_cols])
+        # Scale numerical columns
+        num_cols = ['BMI', 'MentHlth', 'PhysHlth']
+        input_df[num_cols] = scaler.transform(input_df[num_cols])
 
-if st.button("Predict Diabetes"):
-    pred = model.predict(input_data)[0]
-    pred_proba = model.predict_proba(input_data)[0][1] if hasattr(model, "predict_proba") else None
+        # Predict
+        prediction = model.predict(input_df)[0]
+        probability = model.predict_proba(input_df)[0][1] if hasattr(model, "predict_proba") else None
 
-    st.write(f"**Prediction:** {'Diabetes' if pred == 1 else 'No Diabetes'}")
-    if pred_proba is not None:
-        st.write(f"**Probability of Diabetes:** {pred_proba:.2%}")
+        # Output
+        st.subheader("📊 Prediction Result")
+        st.success("Prediction: **Diabetes**" if prediction == 1 else "Prediction: **No Diabetes**")
+        if probability is not None:
+            st.info(f"Probability of Diabetes: **{probability:.2%}**")
+    except ValueError:
+        st.error("🚫 Please enter valid numeric values for all fields.")
+    except Exception as e:
+        st.error(f"An unexpected error occurred: {e}")
