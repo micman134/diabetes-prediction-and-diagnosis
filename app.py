@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import pickle
+st.set_page_config(page_title="Diabetes Prediction App", layout="wide")
 
 # --- Load model and scaler ---
 @st.cache_resource
@@ -14,7 +15,6 @@ def load_model_scaler():
 
 model, scaler = load_model_scaler()
 
-st.set_page_config(page_title="Diabetes Prediction App", layout="wide")
 st.title("Diabetes Risk Prediction")
 
 # Define numeric ranges for inputs (based on dataset documentation or domain knowledge)
