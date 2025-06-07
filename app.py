@@ -12,11 +12,10 @@ def load_model_scaler():
         scaler = pickle.load(f)
     return model, scaler
 
-# Load once
 model, scaler = load_model_scaler()
 
-# Streamlit page setup
-st.set_page_config(page_title="Diabetes Prediction", layout="centered")
+# Set wide layout
+st.set_page_config(page_title="Diabetes Prediction", layout="wide")
 st.title("🧪 Diabetes Prediction App")
 st.markdown("""
 Enter your health details to predict your risk of diabetes.  
@@ -24,7 +23,7 @@ Enter your health details to predict your risk of diabetes.
 ✍️ Enter numeric values like BMI, Age, etc.
 """)
 
-# Define yes/no fields and numeric fields
+# Define input fields
 yes_no_fields = [
     'HighBP', 'HighChol', 'CholCheck', 'Smoker', 'Stroke',
     'HeartDiseaseorAttack', 'PhysActivity', 'Fruits', 'Veggies',
@@ -36,38 +35,39 @@ numeric_fields = [
     'Age', 'Education', 'Income'
 ]
 
-# Dictionary to hold inputs
 inputs = {}
 
-# Form for input
+# Input form
 with st.form("diabetes_form"):
     st.subheader("🟩 Yes/No Questions")
     for field in yes_no_fields:
-        choice = st.selectbox(f"{field}:", ["No", "Yes"], key=field)
-        inputs[field] = 1 if choice == "Yes" else 0
+        inputs[field] = 1 if st.selectbox(f"{field}:", ["No", "Yes"], key=field) == "Yes" else 0
 
     st.subheader("🔢 Numeric Inputs")
-    for field in numeric_fields:
-        value = st.text_input(f"{field}:", key=field)
-        inputs[field] = value
+
+    for i in range(0, len(numeric_fields), 2):
+        cols = st.columns(2)
+        for j in range(2):
+            if i + j < len(numeric_fields):
+                field = numeric_fields[i + j]
+                inputs[field] = cols[j].text_input(f"{field}:", key=field)
 
     submitted = st.form_submit_button("🔍 Predict Diabetes")
 
-# Run prediction on submit
+# Prediction logic
 if submitted:
     try:
-        # Convert inputs to float list
         input_values = []
         for field in yes_no_fields:
-            input_values.append(inputs[field])  # already 0 or 1
+            input_values.append(inputs[field])
         for field in numeric_fields:
-            input_values.append(float(inputs[field]))  # convert from string
+            input_values.append(float(inputs[field]))
 
-        # Create input DataFrame
+        # Create DataFrame
         all_fields = yes_no_fields + numeric_fields
         input_df = pd.DataFrame([input_values], columns=all_fields)
 
-        # Scale the required numeric fields
+        # Scale necessary fields
         num_cols = ['BMI', 'MentHlth', 'PhysHlth']
         input_df[num_cols] = scaler.transform(input_df[num_cols])
 
@@ -75,13 +75,9 @@ if submitted:
         prediction = model.predict(input_df)[0]
         proba = model.predict_proba(input_df)[0][1] if hasattr(model, "predict_proba") else None
 
-        # Display output
+        # Display results
         st.subheader("📊 Prediction Result")
-        if prediction == 1:
-            st.success("Prediction: **Diabetes**")
-        else:
-            st.success("Prediction: **No Diabetes**")
-
+        st.success("Prediction: **Diabetes**" if prediction == 1 else "Prediction: **No Diabetes**")
         if proba is not None:
             st.info(f"Probability of having diabetes: **{proba:.2%}**")
 
