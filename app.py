@@ -19,61 +19,67 @@ st.title("🧪 Diabetes Prediction App")
 
 st.markdown("""
 Enter your health indicator values below.  
-✅ Use dropdowns for Yes/No values  
-✍️ Enter numbers (e.g., BMI, Age) in textboxes
+✅ Use dropdowns for Yes/No questions  
+✍️ Enter numeric values (e.g., BMI, Age) in textboxes
 """)
 
-# Yes/No fields
+# Fields
 yes_no_fields = [
     'HighBP', 'HighChol', 'CholCheck', 'Smoker', 'Stroke',
     'HeartDiseaseorAttack', 'PhysActivity', 'Fruits', 'Veggies',
     'HvyAlcoholConsump', 'AnyHealthcare', 'NoDocbcCost', 'DiffWalk'
 ]
 
-# Numeric-only fields
 numeric_fields = [
     'BMI', 'GenHlth', 'MentHlth', 'PhysHlth', 'Sex',
     'Age', 'Education', 'Income'
 ]
 
-# Create input form
+# Input form
 inputs = {}
 
 with st.form("diabetes_form"):
-    st.subheader("Yes/No Inputs (Select 1 for Yes, 0 for No)")
+    st.subheader("Yes/No Inputs")
     for field in yes_no_fields:
-        inputs[field] = st.selectbox(f"{field}:", ["0", "1"], key=field)
+        user_choice = st.selectbox(f"{field}:", ["No", "Yes"], key=field)
+        inputs[field] = 1 if user_choice == "Yes" else 0
 
     st.subheader("Numeric Inputs")
     for field in numeric_fields:
-        inputs[field] = st.text_input(f"{field}:", key=field)
+        value = st.text_input(f"{field}:", key=field)
+        inputs[field] = value
 
     submit = st.form_submit_button("Predict Diabetes")
 
-# Handle prediction
+# Prediction logic
 if submit:
     try:
-        # Combine all inputs into a list
-        input_values = [float(inputs[f]) for f in yes_no_fields + numeric_fields]
+        # Convert inputs to float
+        input_values = []
+        for field in yes_no_fields:
+            input_values.append(inputs[field])
+        for field in numeric_fields:
+            input_values.append(float(inputs[field]))
 
-        # Create DataFrame
-        input_df = pd.DataFrame([input_values], columns=yes_no_fields + numeric_fields)
+        # DataFrame
+        all_fields = yes_no_fields + numeric_fields
+        input_df = pd.DataFrame([input_values], columns=all_fields)
 
         # Scale numeric columns
         num_cols = ['BMI', 'MentHlth', 'PhysHlth']
         input_df[num_cols] = scaler.transform(input_df[num_cols])
 
-        # Make prediction
+        # Predict
         prediction = model.predict(input_df)[0]
         probability = model.predict_proba(input_df)[0][1] if hasattr(model, "predict_proba") else None
 
-        # Display results
+        # Output
         st.subheader("📊 Prediction Result")
         st.success("Prediction: **Diabetes**" if prediction == 1 else "Prediction: **No Diabetes**")
         if probability is not None:
             st.info(f"Probability of Diabetes: **{probability:.2%}**")
 
     except ValueError:
-        st.error("🚫 Please make sure all fields are filled correctly with numeric values.")
+        st.error("🚫 Please enter valid numeric values for all fields.")
     except Exception as e:
         st.error(f"An unexpected error occurred: {e}")
