@@ -25,11 +25,11 @@ Please fill in the following information to predict diabetes risk.
 """)
 
 def yes_no_selectbox(label):
-    choice = st.selectbox(label, ['No', 'Yes'])
+    choice = st.selectbox(label, ['No', 'Yes'], help=f"Select 'Yes' if you have {label.lower()}. Otherwise, select 'No'.")
     return 1 if choice == 'Yes' else 0
 
 def sex_selectbox(label):
-    choice = st.selectbox(label, ['Female', 'Male'])
+    choice = st.selectbox(label, ['Female', 'Male'], help="Select your biological sex.")
     return 1 if choice == 'Male' else 0
 
 col1, col2 = st.columns(2)
@@ -42,7 +42,8 @@ with col2:
 with col1:
     CholCheck = yes_no_selectbox("Cholesterol Check in last 5 years")
 with col2:
-    BMI = st.number_input("BMI", min_value=10.0, max_value=60.0, value=25.0, step=0.1)
+    BMI = st.number_input("BMI", min_value=10.0, max_value=60.0, value=25.0, step=0.1,
+                          help="Enter your Body Mass Index (between 10.0 and 60.0).")
 
 with col1:
     Smoker = yes_no_selectbox("Smoker")
@@ -62,12 +63,15 @@ with col2:
 with col1:
     HvyAlcoholConsump = yes_no_selectbox("Heavy Alcohol Consumption")
 with col2:
-    GenHlth = st.slider("General Health (1=Excellent to 5=Poor)", 1, 5, 3)
+    GenHlth = st.slider("General Health (1=Excellent to 5=Poor)", 1, 5, 3,
+                        help="Rate your general health: 1=Excellent, 5=Poor.")
 
 with col1:
-    MentHlth = st.number_input("Number of days mental health not good (0-30)", 0, 30, 0)
+    MentHlth = st.number_input("Number of days mental health not good (0-30)", 0, 30, 0,
+                              help="Enter number of days mental health was not good in past 30 days.")
 with col2:
-    PhysHlth = st.number_input("Number of days physical health not good (0-30)", 0, 30, 0)
+    PhysHlth = st.number_input("Number of days physical health not good (0-30)", 0, 30, 0,
+                              help="Enter number of days physical health was not good in past 30 days.")
 
 with col1:
     DiffWalk = yes_no_selectbox("Difficulty walking")
@@ -75,50 +79,67 @@ with col2:
     Sex = sex_selectbox("Sex")
 
 with col1:
-    Age = st.number_input("Age (years)", min_value=18, max_value=120, value=50)
+    Age = st.number_input("Age (years)", min_value=18, max_value=120, value=50,
+                         help="Enter your age in years (18-120).")
 with col2:
     st.write("")  # Blank to keep layout consistent
 
+# Input validation example: warn if BMI seems unrealistic or any other rule
+input_valid = True
+
+if BMI < 10 or BMI > 60:
+    st.warning("BMI should be between 10.0 and 60.0.")
+    input_valid = False
+
+if Age < 18 or Age > 120:
+    st.warning("Age should be between 18 and 120 years.")
+    input_valid = False
+
+# Add more validation checks if needed
+
 if st.button("Predict Diabetes Risk"):
-    input_data = np.array([[HighBP, HighChol, CholCheck, BMI, Smoker, Stroke,
-                            HeartDiseaseorAttack, PhysActivity, Fruits, Veggies,
-                            HvyAlcoholConsump, GenHlth, MentHlth, PhysHlth,
-                            DiffWalk, Sex, Age]])
-    input_scaled = scaler.transform(input_data)
-    prediction = model.predict(input_scaled)[0]
-    probabilities = model.predict_proba(input_scaled)[0]
+    if not input_valid:
+        st.error("Please correct invalid inputs before prediction.")
+    else:
+        input_data = np.array([[HighBP, HighChol, CholCheck, BMI, Smoker, Stroke,
+                                HeartDiseaseorAttack, PhysActivity, Fruits, Veggies,
+                                HvyAlcoholConsump, GenHlth, MentHlth, PhysHlth,
+                                DiffWalk, Sex, Age]])
+        input_scaled = scaler.transform(input_data)
+        prediction = model.predict(input_scaled)[0]
+        probabilities = model.predict_proba(input_scaled)[0]
 
-    class_names = ["No diabetes", "Pre-diabetes", "Diabetes"]
+        class_names = ["No diabetes", "Pre-diabetes", "Diabetes"]
 
-    st.markdown("### 🩺 Prediction Result")
-    st.markdown(f"**Predicted Class:** :blue[{class_names[prediction]}]")
+        st.markdown("### 🩺 Prediction Result")
+        st.markdown(f"**Predicted Class:** :blue[{class_names[prediction]}]")
 
-    # Display model confidence for predicted class
-    confidence = probabilities[prediction] * 100
-    st.markdown(f"**Model Confidence:** :green[{confidence:.1f}%]")
+        # Display model confidence for predicted class
+        confidence = probabilities[prediction] * 100
+        st.markdown(f"**Model Confidence:** :green[{confidence:.1f}%]")
 
-    st.markdown("### 📊 Class Probabilities")
+        st.markdown("### 📊 Class Probabilities")
 
-    # Convert probabilities to percentage
-    percentages = probabilities * 100
-    prob_dict = {class_names[i]: percentages[i] for i in range(len(class_names))}
-    
-    # Create a horizontal bar chart using Plotly
-    fig = go.Figure(go.Bar(
-        x=list(prob_dict.values()),
-        y=list(prob_dict.keys()),
-        orientation='h',
-        text=[f"{v:.1f}%" for v in prob_dict.values()],
-        textposition='auto',
-        marker_color=['#2ca02c', '#ff7f0e', '#d62728']  # Green, Orange, Red
-    ))
+        # Convert probabilities to percentage
+        percentages = probabilities * 100
+        prob_dict = {class_names[i]: percentages[i] for i in range(len(class_names))}
+        
+        # Create a horizontal bar chart using Plotly
+        fig = go.Figure(go.Bar(
+            x=list(prob_dict.values()),
+            y=list(prob_dict.keys()),
+            orientation='h',
+            text=[f"{v:.1f}%" for v in prob_dict.values()],
+            textposition='auto',
+            marker_color=['#2ca02c', '#ff7f0e', '#d62728']  # Green, Orange, Red
+        ))
 
-    fig.update_layout(
-        xaxis_title="Probability (%)",
-        yaxis_title="Class",
-        yaxis=dict(autorange="reversed"),  # Highest on top
-        margin=dict(l=100, r=20, t=20, b=20),
-        height=300,
-    )
+        fig.update_layout(
+            xaxis_title="Probability (%)",
+            yaxis_title="Class",
+            yaxis=dict(autorange="reversed"),  # Highest on top
+            margin=dict(l=100, r=20, t=20, b=20),
+            height=300,
+        )
 
-    st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
