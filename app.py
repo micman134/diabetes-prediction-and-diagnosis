@@ -70,12 +70,12 @@ scaler, model = load_artifacts()
 # Sidebar navigation
 with st.sidebar:
     st.image("https://img.icons8.com/color/96/000000/diabetes.png", width=80)
-    st.title("Navigation")
-    menu_option = st.radio("", 
+    menu_option = st.radio("Navigation Menu",
                          ["📊 Prediction", 
                           "🔍 Model Analysis", 
                           "ℹ️ About"],
-                         index=0)
+                         index=0,
+                         label_visibility="visible")
 
 # Helper functions
 def yes_no_selectbox(label: str, help_text: str = "", key: str = None) -> int:
@@ -149,16 +149,22 @@ def get_risk_class(prediction: int) -> str:
     text, style = classes.get(prediction, ("Unknown", ""))
     return f'<span class="{style}">{text}</span>'
 
+# Feature names for the model
+FEATURE_NAMES = [
+    'HighBP', 'HighChol', 'CholCheck', 'BMI', 'Smoker', 'Stroke',
+    'HeartDiseaseorAttack', 'PhysActivity', 'Fruits', 'Veggies',
+    'HvyAlcoholConsump', 'GenHlth', 'MentHlth', 'PhysHlth',
+    'DiffWalk', 'Sex', 'Age'
+]
+
 # Main content based on menu selection
 if menu_option == "📊 Prediction":
-    # App header
     st.title("🩺 Diabetes Risk Predictor")
     st.markdown("""
     This tool assesses your risk of diabetes based on health and lifestyle factors.  
     Please fill in the following information to get your personalized assessment.
     """)
 
-    # Input form
     with st.form("diabetes_risk_form"):
         st.subheader("Personal Information")
         col1, col2 = st.columns(2)
@@ -257,10 +263,8 @@ if menu_option == "📊 Prediction":
             )
         
         st.markdown("<small>* Required fields</small>", unsafe_allow_html=True)
-        
         submitted = st.form_submit_button("Predict Diabetes Risk", use_container_width=True)
 
-    # Prediction logic
     if submitted:
         if scaler is None or model is None:
             st.error("Model not loaded properly. Please try again later.")
@@ -272,7 +276,6 @@ if menu_option == "📊 Prediction":
             st.error(f"Please correct the following errors:\n{error_msg}")
         else:
             with st.spinner('Calculating your diabetes risk...'):
-                # Simulate processing time for better UX
                 progress_bar = st.progress(0)
                 status_text = st.empty()
                 
@@ -281,35 +284,32 @@ if menu_option == "📊 Prediction":
                     status_text.text(f"Analyzing... {percent_complete}%")
                     time.sleep(0.02)
                 
-                # Prepare input data
-                input_data = np.array([[HighBP, HighChol, CholCheck, BMI, Smoker, Stroke,
-                                      HeartDiseaseorAttack, PhysActivity, Fruits, Veggies,
-                                      HvyAlcoholConsump, GenHlth, MentHlth, PhysHlth,
-                                      DiffWalk, Sex, Age]])
+                # Create DataFrame with proper feature names
+                input_data = pd.DataFrame(
+                    [[HighBP, HighChol, CholCheck, BMI, Smoker, Stroke,
+                      HeartDiseaseorAttack, PhysActivity, Fruits, Veggies,
+                      HvyAlcoholConsump, GenHlth, MentHlth, PhysHlth,
+                      DiffWalk, Sex, Age]],
+                    columns=FEATURE_NAMES
+                )
                 
-                # Make prediction
                 try:
                     input_scaled = scaler.transform(input_data)
                     prediction = model.predict(input_scaled)[0]
                     probabilities = model.predict_proba(input_scaled)[0]
                     
-                    # Define class names
                     class_names = ["No diabetes", "Pre-diabetes", "Diabetes"]
-                    risk_levels = ["low", "medium", "high"]
                     
-                    # Display results
                     st.success("Analysis complete!")
                     progress_bar.empty()
                     status_text.empty()
                     
-                    # Prediction result
                     st.markdown(f"""
                     ### 🩺 Prediction Result
                     **Risk Level:** {get_risk_class(prediction)}  
                     **Prediction:** {class_names[prediction]}
                     """, unsafe_allow_html=True)
                     
-                    # Probability visualization
                     st.markdown("### 📊 Prediction Confidence")
                     
                     fig = go.Figure(go.Bar(
@@ -318,7 +318,7 @@ if menu_option == "📊 Prediction":
                         orientation='h',
                         text=[f"{p*100:.1f}%" for p in probabilities],
                         textposition='auto',
-                        marker_color=['#2ca02c', '#ff7f0e', '#d62728']  # Green, Orange, Red
+                        marker_color=['#2ca02c', '#ff7f0e', '#d62728']
                     ))
                     
                     fig.update_layout(
@@ -330,12 +330,9 @@ if menu_option == "📊 Prediction":
                     )
                     
                     st.plotly_chart(fig, use_container_width=True)
-                    
-                    # Prevention tips
                     st.markdown("### 💡 Recommended Actions")
                     st.markdown(get_prevention_tips(prediction))
                     
-                    # Key contributing factors (simplified example)
                     st.markdown("### 🔍 Potential Risk Factors")
                     risk_factors = []
                     if BMI >= 25:
@@ -359,7 +356,6 @@ if menu_option == "📊 Prediction":
                 except Exception as e:
                     st.error(f"An error occurred during prediction: {str(e)}")
             
-            # Disclaimer
             st.markdown("""
             <div class="disclaimer">
             <strong>Disclaimer:</strong> This tool is for informational purposes only and is not a substitute 
@@ -387,7 +383,6 @@ elif menu_option == "🔍 Model Analysis":
         *Metrics based on 10-fold cross-validation with test dataset*
         """)
         
-        # Simulated confusion matrix
         st.markdown("**Confusion Matrix:**")
         cm_data = pd.DataFrame({
             'Predicted No Diabetes': [1250, 85, 32],
@@ -401,7 +396,6 @@ elif menu_option == "🔍 Model Analysis":
         The following features have the most significant impact on the prediction:
         """)
         
-        # Simulated feature importance
         features = [
             ("BMI", 0.28),
             ("Age", 0.22),
