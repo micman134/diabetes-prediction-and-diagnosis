@@ -32,29 +32,29 @@ Fruits = st.selectbox("Eat Fruits (1=Yes, 0=No)", [0, 1])
 Veggies = st.selectbox("Eat Vegetables (1=Yes, 0=No)", [0, 1])
 HvyAlcoholConsump = st.selectbox("Heavy Alcohol Consumption (1=Yes, 0=No)", [0, 1])
 GenHlth = st.slider("General Health (1=Excellent to 5=Poor)", 1, 5, 3)
-MentHlth = st.number_input("Number of days mental health not good (0-30)", 0, 30, 0)
-PhysHlth = st.number_input("Number of days physical health not good (0-30)", 0, 30, 0)
+
+# Put MentHlth and PhysHlth side by side
+col1, col2 = st.columns(2)
+with col1:
+    MentHlth = st.number_input("Days mental health not good (0-30)", 0, 30, 0)
+with col2:
+    PhysHlth = st.number_input("Days physical health not good (0-30)", 0, 30, 0)
+
 DiffWalk = st.selectbox("Difficulty walking (1=Yes, 0=No)", [0, 1])
 Sex = st.selectbox("Sex (1=Male, 0=Female)", [0, 1])
 Age = st.number_input("Age (years)", min_value=18, max_value=120, value=50)
 
 if st.button("Predict Diabetes Risk"):
-    # Prepare input data as 2D array with 17 features
     input_data = np.array([[HighBP, HighChol, CholCheck, BMI, Smoker, Stroke,
                             HeartDiseaseorAttack, PhysActivity, Fruits, Veggies,
                             HvyAlcoholConsump, GenHlth, MentHlth, PhysHlth,
                             DiffWalk, Sex, Age]])
-
-    # Scale input data
     input_scaled = scaler.transform(input_data)
-
-    # Make prediction and get probabilities
     prediction = model.predict(input_scaled)[0]
     probabilities = model.predict_proba(input_scaled)[0]
 
-    # Display results
     st.write(f"### Predicted Diabetes Class: {prediction}")
-    st.write(f"### Class Probabilities:")
+    st.write("### Class Probabilities:")
     st.write(f"Class 0 (No diabetes): {probabilities[0]:.3f}")
     st.write(f"Class 1 (Pre-diabetes): {probabilities[1]:.3f}")
     st.write(f"Class 2 (Diabetes): {probabilities[2]:.3f}")
