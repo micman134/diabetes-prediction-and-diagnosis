@@ -80,13 +80,14 @@ with col2:
     st.write("")  # Blank to keep layout consistent
 
 if st.button("Predict Diabetes Risk"):
-    input_data = np.array([[HighBP, HighChol, CholCheck, BMI, Smoker, Stroke,
-                            HeartDiseaseorAttack, PhysActivity, Fruits, Veggies,
-                            HvyAlcoholConsump, GenHlth, MentHlth, PhysHlth,
-                            DiffWalk, Sex, Age]])
-    input_scaled = scaler.transform(input_data)
-    prediction = model.predict(input_scaled)[0]
-    probabilities = model.predict_proba(input_scaled)[0]
+    with st.spinner('Predicting... Please wait.'):
+        input_data = np.array([[HighBP, HighChol, CholCheck, BMI, Smoker, Stroke,
+                                HeartDiseaseorAttack, PhysActivity, Fruits, Veggies,
+                                HvyAlcoholConsump, GenHlth, MentHlth, PhysHlth,
+                                DiffWalk, Sex, Age]])
+        input_scaled = scaler.transform(input_data)
+        prediction = model.predict(input_scaled)[0]
+        probabilities = model.predict_proba(input_scaled)[0]
 
     class_names = ["No diabetes", "Pre-diabetes", "Diabetes"]
 
