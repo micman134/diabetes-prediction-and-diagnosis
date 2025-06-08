@@ -18,6 +18,42 @@ def load_artifacts():
 
 scaler, model = load_artifacts()
 
+# Debug test: Check scaler and model with sample data
+def debug_model_and_scaler():
+    # Example input, make sure this has the same number of features as your model expects (17 here)
+    sample_input = np.array([[1, 1, 1, 25.0, 1, 0, 0, 1, 1, 1, 0, 3, 0, 0, 0, 1, 45]])
+    
+    # Show sample input before scaling
+    st.write("Sample raw input:", sample_input)
+    
+    # Scale the sample input
+    try:
+        sample_scaled = scaler.transform(sample_input)
+        st.write("Sample scaled input:", sample_scaled)
+    except Exception as e:
+        st.error(f"Scaler transform error: {e}")
+        return
+    
+    # Predict using the model
+    try:
+        pred = model.predict(sample_scaled)
+        st.write("Sample prediction:", pred)
+    except Exception as e:
+        st.error(f"Prediction error: {e}")
+        return
+    
+    # Predict probabilities if supported
+    try:
+        probs = model.predict_proba(sample_scaled)
+        st.write("Sample prediction probabilities:", probs)
+    except AttributeError:
+        st.warning("Model does not support predict_proba()")
+    except Exception as e:
+        st.error(f"Prediction probabilities error: {e}")
+
+# Call the debug function (you can comment this out once done)
+debug_model_and_scaler()
+
 st.title("🩺 Diabetes Risk Predictor")
 
 st.markdown("""
