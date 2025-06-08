@@ -3,10 +3,10 @@ import pickle
 import numpy as np
 
 # Load scaler and model
-with open('scaler.pkl', 'rb') as f:
+with open('scaler2.pkl', 'rb') as f:
     scaler = pickle.load(f)
 
-with open('best_model.pkl', 'rb') as f:
+with open('best_model2.pkl', 'rb') as f:
     model = pickle.load(f)
 
 st.title("Diabetes Prediction App")
