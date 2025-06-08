@@ -24,70 +24,78 @@ st.markdown("""
 Please fill in the following information to predict diabetes risk.
 """)
 
-def yes_no_selectbox(label, key=None):
-    choice = st.selectbox(label, ['No', 'Yes'], key=key)
+def yes_no_selectbox(label):
+    choice = st.selectbox(label, ['No', 'Yes'])
     return 1 if choice == 'Yes' else 0
 
-def sex_selectbox(label, key=None):
-    choice = st.selectbox(label, ['Female', 'Male'], key=key)
+def sex_selectbox(label):
+    choice = st.selectbox(label, ['Female', 'Male'])
     return 1 if choice == 'Male' else 0
 
 col1, col2 = st.columns(2)
 
 with col1:
-    HighBP = yes_no_selectbox("High Blood Pressure", key="HighBP")
+    HighBP = yes_no_selectbox("High Blood Pressure")
 with col2:
-    HighChol = yes_no_selectbox("High Cholesterol", key="HighChol")
+    HighChol = yes_no_selectbox("High Cholesterol")
 
 with col1:
-    CholCheck = yes_no_selectbox("Cholesterol Check in last 5 years", key="CholCheck")
+    CholCheck = yes_no_selectbox("Cholesterol Check in last 5 years")
 with col2:
-    BMI = st.number_input("BMI", min_value=10.0, max_value=60.0, value=25.0, step=0.1, key="BMI")
+    BMI = st.number_input("BMI", min_value=10.0, max_value=60.0, value=25.0, step=0.1)
 
 with col1:
-    Smoker = yes_no_selectbox("Smoker", key="Smoker")
+    Smoker = yes_no_selectbox("Smoker")
 with col2:
-    Stroke = yes_no_selectbox("Had Stroke", key="Stroke")
+    Stroke = yes_no_selectbox("Had Stroke")
 
 with col1:
-    HeartDiseaseorAttack = yes_no_selectbox("Heart Disease or Attack", key="HeartDiseaseorAttack")
+    HeartDiseaseorAttack = yes_no_selectbox("Heart Disease or Attack")
 with col2:
-    PhysActivity = yes_no_selectbox("Physically Active", key="PhysActivity")
+    PhysActivity = yes_no_selectbox("Physically Active")
 
 with col1:
-    Fruits = yes_no_selectbox("Eat Fruits", key="Fruits")
+    Fruits = yes_no_selectbox("Eat Fruits")
 with col2:
-    Veggies = yes_no_selectbox("Eat Vegetables", key="Veggies")
+    Veggies = yes_no_selectbox("Eat Vegetables")
 
 with col1:
-    HvyAlcoholConsump = yes_no_selectbox("Heavy Alcohol Consumption", key="HvyAlcoholConsump")
+    HvyAlcoholConsump = yes_no_selectbox("Heavy Alcohol Consumption")
 with col2:
-    GenHlth = st.slider("General Health (1=Excellent to 5=Poor)", 1, 5, 3, key="GenHlth")
+    GenHlth = st.slider("General Health (1=Excellent to 5=Poor)", 1, 5, 3)
 
 with col1:
-    MentHlth = st.number_input("Number of days mental health not good (0-30)", 0, 30, 0, key="MentHlth")
+    MentHlth = st.number_input("Number of days mental health not good (0-30)", 0, 30, 0)
 with col2:
-    PhysHlth = st.number_input("Number of days physical health not good (0-30)", 0, 30, 0, key="PhysHlth")
+    PhysHlth = st.number_input("Number of days physical health not good (0-30)", 0, 30, 0)
 
 with col1:
-    DiffWalk = yes_no_selectbox("Difficulty walking", key="DiffWalk")
+    DiffWalk = yes_no_selectbox("Difficulty walking")
 with col2:
-    Sex = sex_selectbox("Sex", key="Sex")
+    Sex = sex_selectbox("Sex")
 
 with col1:
-    Age = st.number_input("Age (years)", min_value=18, max_value=120, value=50, key="Age")
+    Age = st.number_input("Age (years)", min_value=18, max_value=120, value=50)
 with col2:
     st.write("")  # Blank to keep layout consistent
 
-class_names = ["No diabetes", "Pre-diabetes", "Diabetes"]
-
-def predict_and_show(input_data):
+if st.button("Predict Diabetes Risk"):
+    input_data = np.array([[HighBP, HighChol, CholCheck, BMI, Smoker, Stroke,
+                            HeartDiseaseorAttack, PhysActivity, Fruits, Veggies,
+                            HvyAlcoholConsump, GenHlth, MentHlth, PhysHlth,
+                            DiffWalk, Sex, Age]])
     input_scaled = scaler.transform(input_data)
     prediction = model.predict(input_scaled)[0]
     probabilities = model.predict_proba(input_scaled)[0]
 
+    class_names = ["No diabetes", "Pre-diabetes", "Diabetes"]
+
     st.markdown("### 🩺 Prediction Result")
     st.markdown(f"**Predicted Class:** :blue[{class_names[prediction]}]")
+
+    # Display model confidence for predicted class
+    confidence = probabilities[prediction] * 100
+    st.markdown(f"**Model Confidence:** :green[{confidence:.1f}%]")
 
     st.markdown("### 📊 Class Probabilities")
 
@@ -114,18 +122,3 @@ def predict_and_show(input_data):
     )
 
     st.plotly_chart(fig, use_container_width=True)
-
-# Main prediction from user input
-if st.button("Predict Diabetes Risk"):
-    input_data = np.array([[HighBP, HighChol, CholCheck, BMI, Smoker, Stroke,
-                            HeartDiseaseorAttack, PhysActivity, Fruits, Veggies,
-                            HvyAlcoholConsump, GenHlth, MentHlth, PhysHlth,
-                            DiffWalk, Sex, Age]])
-    with st.spinner("Predicting..."):
-        predict_and_show(input_data)
-
-# Button to test a predefined high-risk input
-if st.button("Test High-Risk Input"):
-    high_risk_input = np.array([[1, 1, 1, 50.0, 1, 1, 1, 0, 0, 0, 1, 5, 30, 30, 1, 1, 70]])
-    with st.spinner("Predicting high-risk case..."):
-        predict_and_show(high_risk_input)
