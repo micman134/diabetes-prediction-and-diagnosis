@@ -1,6 +1,7 @@
 import streamlit as st
 import numpy as np
 import pickle
+import pandas as pd
 
 # Cache model and scaler loading for efficiency
 @st.cache_data
@@ -83,8 +84,13 @@ if st.button("Predict Diabetes Risk"):
     prediction = model.predict(input_scaled)[0]
     probabilities = model.predict_proba(input_scaled)[0]
 
-    st.write(f"### Predicted Diabetes Class: {prediction}")
-    st.write("### Class Probabilities:")
-    st.write(f"Class 0 (No diabetes): {probabilities[0]:.3f}")
-    st.write(f"Class 1 (Pre-diabetes): {probabilities[1]:.3f}")
-    st.write(f"Class 2 (Diabetes): {probabilities[2]:.3f}")
+    class_names = ["No diabetes", "Pre-diabetes", "Diabetes"]
+
+    st.markdown("### 🩺 Prediction Result")
+    st.markdown(f"**Predicted Class:** :blue[{class_names[prediction]}]")
+
+    st.markdown("### 📊 Class Probabilities")
+    prob_dict = {class_names[i]: probabilities[i] for i in range(len(class_names))}
+    
+    df_probs = pd.DataFrame.from_dict(prob_dict, orient='index', columns=['Probability'])
+    st.bar_chart(df_probs, use_container_width=True)
