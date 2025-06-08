@@ -2,6 +2,10 @@ import streamlit as st
 import numpy as np
 import pickle
 import pandas as pd
+import plotly.graph_objects as go
+
+# Set page title and icon
+st.set_page_config(page_title="Diabetes Risk Predictor", page_icon="🩺")
 
 # Cache model and scaler loading for efficiency
 @st.cache_data
@@ -90,7 +94,27 @@ if st.button("Predict Diabetes Risk"):
     st.markdown(f"**Predicted Class:** :blue[{class_names[prediction]}]")
 
     st.markdown("### 📊 Class Probabilities")
-    prob_dict = {class_names[i]: probabilities[i] for i in range(len(class_names))}
+
+    # Convert probabilities to percentage
+    percentages = probabilities * 100
+    prob_dict = {class_names[i]: percentages[i] for i in range(len(class_names))}
     
-    df_probs = pd.DataFrame.from_dict(prob_dict, orient='index', columns=['Probability'])
-    st.bar_chart(df_probs, use_container_width=True)
+    # Create a horizontal bar chart using Plotly
+    fig = go.Figure(go.Bar(
+        x=list(prob_dict.values()),
+        y=list(prob_dict.keys()),
+        orientation='h',
+        text=[f"{v:.1f}%" for v in prob_dict.values()],
+        textposition='auto',
+        marker_color=['#2ca02c', '#ff7f0e', '#d62728']  # Green, Orange, Red
+    ))
+
+    fig.update_layout(
+        xaxis_title="Probability (%)",
+        yaxis_title="Class",
+        yaxis=dict(autorange="reversed"),  # Highest on top
+        margin=dict(l=100, r=20, t=20, b=20),
+        height=300,
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
