@@ -1,126 +1,79 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
 import pickle
+import numpy as np
 
-st.set_page_config(page_title="Diabetes Prediction App", layout="wide")
+# Load scaler and model
+with open('scaler.pkl', 'rb') as f:
+    scaler = pickle.load(f)
+
+with open('best_model.pkl', 'rb') as f:
+    model = pickle.load(f)
+
 st.title("Diabetes Prediction App")
-st.markdown("Fill in the health indicators below to predict diabetes risk.")
 
-@st.cache_resource
-def load_model_scaler():
-    with open("best_model.pkl", "rb") as f:
-        model = pickle.load(f)
-    with open("scaler.pkl", "rb") as f:
-        scaler = pickle.load(f)
-    return model, scaler
+st.write("Enter the patient's health details below:")
 
-model, scaler = load_model_scaler()
+# Input fields according to your features after dropping:
+# ['HighBP', 'HighChol', 'CholCheck', 'BMI', 'Smoker',
+#  'Stroke', 'HeartDiseaseorAttack', 'PhysActivity', 'Fruits', 'Veggies',
+#  'HvyAlcoholConsump', 'GenHlth', 'MentHlth', 'PhysHlth', 'DiffWalk',
+#  'Sex', 'Age']
 
-def yes_no_to_num(val):
-    return 1 if val == "Yes" else 0
+# Note: Sex is assumed encoded as 0 or 1
 
-with st.form("input_form"):
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        sex = st.selectbox("Sex", ["Male", "Female"], help="Select your biological sex")
-        sex_num = 1 if sex == "Male" else 0
-        
-        highbp = st.selectbox("High Blood Pressure (HighBP)", ["Yes", "No"], help="Do you have high blood pressure?")
-        highbp_num = yes_no_to_num(highbp)
-        
-        cholcheck = st.selectbox("Cholesterol Check (CholCheck)", ["Yes", "No"], help="Had cholesterol checked in past 5 years?")
-        cholcheck_num = yes_no_to_num(cholcheck)
-        
-        smoker = st.selectbox("Smoker", ["Yes", "No"], help="Do you currently smoke?")
-        smoker_num = yes_no_to_num(smoker)
-        
-        heart_disease = st.selectbox("Heart Disease or Attack", ["Yes", "No"], help="Ever had heart disease or attack?")
-        heart_disease_num = yes_no_to_num(heart_disease)
-        
-        fruits = st.selectbox("Consume Fruits", ["Yes", "No"], help="Eat fruits daily?")
-        fruits_num = yes_no_to_num(fruits)
-        
-        hvy_alcohol = st.selectbox("Heavy Alcohol Consumption", ["Yes", "No"], help="Heavy drinker?")
-        hvy_alcohol_num = yes_no_to_num(hvy_alcohol)
-        
-        nodocbcost = st.selectbox("No Doctor Because of Cost", ["Yes", "No"], help="Avoided doctor due to cost?")
-        nodocbcost_num = yes_no_to_num(nodocbcost)
-        
-        diffwalk = st.selectbox("Difficulty Walking", ["Yes", "No"], help="Difficulty walking or climbing stairs?")
-        diffwalk_num = yes_no_to_num(diffwalk)
+HighBP = st.selectbox("High Blood Pressure (1 = Yes, 0 = No)", options=[0,1], index=0)
+HighChol = st.selectbox("High Cholesterol (1 = Yes, 0 = No)", options=[0,1], index=0)
+CholCheck = st.selectbox("Cholesterol Check in Past 5 Years (1 = Yes, 0 = No)", options=[0,1], index=1)
+BMI = st.number_input("BMI", min_value=10.0, max_value=70.0, value=25.0, step=0.1)
+Smoker = st.selectbox("Smoker (1 = Yes, 0 = No)", options=[0,1], index=0)
+Stroke = st.selectbox("Stroke (1 = Yes, 0 = No)", options=[0,1], index=0)
+HeartDiseaseorAttack = st.selectbox("Heart Disease or Attack (1 = Yes, 0 = No)", options=[0,1], index=0)
+PhysActivity = st.selectbox("Physically Active (1 = Yes, 0 = No)", options=[0,1], index=1)
+Fruits = st.selectbox("Eat Fruits One or More Times Per Day (1 = Yes, 0 = No)", options=[0,1], index=1)
+Veggies = st.selectbox("Eat Vegetables One or More Times Per Day (1 = Yes, 0 = No)", options=[0,1], index=1)
+HvyAlcoholConsump = st.selectbox("Heavy Alcohol Consumption (1 = Yes, 0 = No)", options=[0,1], index=0)
+GenHlth = st.slider("General Health (1=Excellent, 5=Poor)", min_value=1, max_value=5, value=3)
+MentHlth = st.slider("Days of Poor Mental Health in Past 30 Days", min_value=0, max_value=30, value=0)
+PhysHlth = st.slider("Days of Poor Physical Health in Past 30 Days", min_value=0, max_value=30, value=0)
+DiffWalk = st.selectbox("Difficulty Walking or Climbing Stairs (1 = Yes, 0 = No)", options=[0,1], index=0)
+Sex = st.selectbox("Sex (0 = Female, 1 = Male)", options=[0,1], index=1)
+Age = st.selectbox(
+    "Age Category",
+    options=[1,2,3,4,5,6,7,8,9],
+    format_func=lambda x: {
+        1: "18-24",
+        2: "25-29",
+        3: "30-34",
+        4: "35-39",
+        5: "40-44",
+        6: "45-49",
+        7: "50-54",
+        8: "55-59",
+        9: "60+"
+    }[x],
+    index=0
+)
 
-    with col2:
-        highchol = st.selectbox("High Cholesterol (HighChol)", ["Yes", "No"], help="Have high cholesterol?")
-        highchol_num = yes_no_to_num(highchol)
-        
-        stroke = st.selectbox("Stroke", ["Yes", "No"], help="Ever had stroke?")
-        stroke_num = yes_no_to_num(stroke)
-        
-        phys_activity = st.selectbox("Physical Activity", ["Yes", "No"], help="Physically active past month?")
-        phys_activity_num = yes_no_to_num(phys_activity)
-        
-        veggies = st.selectbox("Consume Vegetables", ["Yes", "No"], help="Eat vegetables daily?")
-        veggies_num = yes_no_to_num(veggies)
-        
-        any_healthcare = st.selectbox("Any Healthcare Access", ["Yes", "No"], help="Have healthcare coverage?")
-        any_healthcare_num = yes_no_to_num(any_healthcare)
-        
-        genhlth = st.slider("General Health (GenHlth)", 1, 5, 3, help="1=Excellent to 5=Poor")
-        
-        menthlth = st.number_input("Mental Health (MentHlth) [days]", min_value=0, max_value=30, value=0, step=1, help="Days mental health not good")
-        
-        physhlth = st.number_input("Physical Health (PhysHlth) [days]", min_value=0, max_value=30, value=0, step=1, help="Days physical health not good")
-        
-        bmi = st.number_input("Body Mass Index (BMI)", min_value=12.0, max_value=70.0, value=25.0, step=0.1, format="%.1f", help="BMI between 12 and 70")
-        
-        age = st.slider("Age Category", 1, 13, 5, help="1=18-24 ... 13=80+")
-        
-        education = st.slider("Education Level", 1, 6, 3, help="1=No school ... 6=College grad")
-        
-        income = st.slider("Income Level", 1, 8, 5, help="1= <$10k ... 8= >$75k")
-    
-    submit = st.form_submit_button("Predict Diabetes Risk")
+if st.button("Predict Diabetes Class"):
+    # Prepare feature array in correct order
+    features = np.array([[
+        HighBP, HighChol, CholCheck, BMI, Smoker,
+        Stroke, HeartDiseaseorAttack, PhysActivity, Fruits, Veggies,
+        HvyAlcoholConsump, GenHlth, MentHlth, PhysHlth, DiffWalk,
+        Sex, Age
+    ]])
 
-if submit:
-    input_dict = {
-        'HighBP': highbp_num,
-        'HighChol': highchol_num,
-        'CholCheck': cholcheck_num,
-        'BMI': bmi,
-        'Smoker': smoker_num,
-        'Stroke': stroke_num,
-        'HeartDiseaseorAttack': heart_disease_num,
-        'PhysActivity': phys_activity_num,
-        'Fruits': fruits_num,
-        'Veggies': veggies_num,
-        'HvyAlcoholConsump': hvy_alcohol_num,
-        'AnyHealthcare': any_healthcare_num,
-        'NoDocbcCost': nodocbcost_num,
-        'GenHlth': genhlth,
-        'MentHlth': menthlth,
-        'PhysHlth': physhlth,
-        'DiffWalk': diffwalk_num,
-        'Sex': sex_num,
-        'Age': age,
-        'Education': education,
-        'Income': income
+    # Scale features
+    features_scaled = scaler.transform(features)
+
+    # Predict
+    pred = model.predict(features_scaled)[0]
+
+    # Map prediction to label if you have class meaning
+    class_mapping = {
+        0: "No Diabetes",
+        1: "Prediabetes",
+        2: "Diabetes"
     }
-    input_df = pd.DataFrame([input_dict])
-    
-    # Scale numeric columns only
-    numeric_cols = ['BMI', 'MentHlth', 'PhysHlth']
-    input_df[numeric_cols] = scaler.transform(input_df[numeric_cols])
-    
-    prediction = model.predict(input_df)[0]
-    prediction_proba = model.predict_proba(input_df)[0][1] if hasattr(model, "predict_proba") else None
-    
-    st.subheader("Prediction Result")
-    if prediction == 1:
-        st.error("⚠️ High risk of diabetes detected.")
-    else:
-        st.success("✅ Low risk of diabetes detected.")
-    
-    if prediction_proba is not None:
-        st.info(f"Prediction confidence: {prediction_proba:.2%}")
+
+    st.success(f"Prediction: **{class_mapping.get(pred, 'Unknown')}**")
