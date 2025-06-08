@@ -20,13 +20,12 @@ scaler, model = load_artifacts()
 
 # Debug test: Check scaler and model with sample data
 def debug_model_and_scaler():
-    # Example input, make sure this has the same number of features as your model expects (17 here)
+    # Example input: 17 features (make sure this matches your model input exactly)
     sample_input = np.array([[1, 1, 1, 25.0, 1, 0, 0, 1, 1, 1, 0, 3, 0, 0, 0, 1, 45]])
     
-    # Show sample input before scaling
+    st.write("### Debug Info")
     st.write("Sample raw input:", sample_input)
     
-    # Scale the sample input
     try:
         sample_scaled = scaler.transform(sample_input)
         st.write("Sample scaled input:", sample_scaled)
@@ -34,7 +33,6 @@ def debug_model_and_scaler():
         st.error(f"Scaler transform error: {e}")
         return
     
-    # Predict using the model
     try:
         pred = model.predict(sample_scaled)
         st.write("Sample prediction:", pred)
@@ -42,7 +40,6 @@ def debug_model_and_scaler():
         st.error(f"Prediction error: {e}")
         return
     
-    # Predict probabilities if supported
     try:
         probs = model.predict_proba(sample_scaled)
         st.write("Sample prediction probabilities:", probs)
@@ -51,7 +48,7 @@ def debug_model_and_scaler():
     except Exception as e:
         st.error(f"Prediction probabilities error: {e}")
 
-# Call the debug function (you can comment this out once done)
+# Call debug function (comment out if not needed)
 debug_model_and_scaler()
 
 st.title("🩺 Diabetes Risk Predictor")
@@ -113,17 +110,16 @@ with col2:
 with col1:
     Age = st.number_input("Age (years)", min_value=18, max_value=120, value=50)
 with col2:
-    st.write("")  # Blank to keep layout consistent
+    st.write("")  # Blank for layout
 
 if st.button("Predict Diabetes Risk"):
-    with st.spinner('Predicting... Please wait.'):
-        input_data = np.array([[HighBP, HighChol, CholCheck, BMI, Smoker, Stroke,
-                                HeartDiseaseorAttack, PhysActivity, Fruits, Veggies,
-                                HvyAlcoholConsump, GenHlth, MentHlth, PhysHlth,
-                                DiffWalk, Sex, Age]])
-        input_scaled = scaler.transform(input_data)
-        prediction = model.predict(input_scaled)[0]
-        probabilities = model.predict_proba(input_scaled)[0]
+    input_data = np.array([[HighBP, HighChol, CholCheck, BMI, Smoker, Stroke,
+                            HeartDiseaseorAttack, PhysActivity, Fruits, Veggies,
+                            HvyAlcoholConsump, GenHlth, MentHlth, PhysHlth,
+                            DiffWalk, Sex, Age]])
+    input_scaled = scaler.transform(input_data)
+    prediction = model.predict(input_scaled)[0]
+    probabilities = model.predict_proba(input_scaled)[0]
 
     class_names = ["No diabetes", "Pre-diabetes", "Diabetes"]
 
@@ -132,11 +128,9 @@ if st.button("Predict Diabetes Risk"):
 
     st.markdown("### 📊 Class Probabilities")
 
-    # Convert probabilities to percentage
     percentages = probabilities * 100
     prob_dict = {class_names[i]: percentages[i] for i in range(len(class_names))}
     
-    # Create a horizontal bar chart using Plotly
     fig = go.Figure(go.Bar(
         x=list(prob_dict.values()),
         y=list(prob_dict.keys()),
@@ -149,7 +143,7 @@ if st.button("Predict Diabetes Risk"):
     fig.update_layout(
         xaxis_title="Probability (%)",
         yaxis_title="Class",
-        yaxis=dict(autorange="reversed"),  # Highest on top
+        yaxis=dict(autorange="reversed"),
         margin=dict(l=100, r=20, t=20, b=20),
         height=300,
     )
