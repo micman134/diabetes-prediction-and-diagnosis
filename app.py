@@ -5,9 +5,9 @@ import pickle
 # Cache model and scaler loading for efficiency
 @st.cache_data
 def load_artifacts():
-    with open('scaler.pkl', 'rb') as f:
+    with open('scalers.pkl', 'rb') as f:
         scaler = pickle.load(f)
-    with open('model.pkl', 'rb') as f:
+    with open('best_models.pkl', 'rb') as f:
         model = pickle.load(f)
     return scaler, model
 
