@@ -5,9 +5,9 @@ import pickle
 # Cache model and scaler loading for efficiency
 @st.cache_data
 def load_artifacts():
-    with open('scalers.pkl', 'rb') as f:
+    with open('scaler.pkl', 'rb') as f:
         scaler = pickle.load(f)
-    with open('best_models.pkl', 'rb') as f:
+    with open('model.pkl', 'rb') as f:
         model = pickle.load(f)
     return scaler, model
 
@@ -19,12 +19,14 @@ st.markdown("""
 Please fill in the following information to predict diabetes risk.
 """)
 
-# Helper to create Yes/No selectbox and map to 1/0
 def yes_no_selectbox(label):
     choice = st.selectbox(label, ['No', 'Yes'])
     return 1 if choice == 'Yes' else 0
 
-# Create two columns layout repeatedly
+def sex_selectbox(label):
+    choice = st.selectbox(label, ['Female', 'Male'])
+    return 1 if choice == 'Male' else 0
+
 col1, col2 = st.columns(2)
 
 with col1:
@@ -65,12 +67,12 @@ with col2:
 with col1:
     DiffWalk = yes_no_selectbox("Difficulty walking")
 with col2:
-    Sex = yes_no_selectbox("Sex (Male)")
+    Sex = sex_selectbox("Sex")
 
 with col1:
     Age = st.number_input("Age (years)", min_value=18, max_value=120, value=50)
 with col2:
-    st.write("")  # Empty to keep layout consistent (optional)
+    st.write("")  # Blank to keep layout consistent
 
 if st.button("Predict Diabetes Risk"):
     input_data = np.array([[HighBP, HighChol, CholCheck, BMI, Smoker, Stroke,
