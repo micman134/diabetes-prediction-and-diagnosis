@@ -6,16 +6,6 @@ import plotly.graph_objects as go
 import time
 from typing import Tuple
 
-# Define the order of all original features that were input to the scaler/selector
-# This order MUST match the order of columns in your X DataFrame BEFORE feature selection
-# in your training script (after dropping 'AnyHealthcare', 'NoDocbcCost', 'Education', 'Income').
-ORIGINAL_FEATURE_ORDER = [
-    'HighBP', 'HighChol', 'CholCheck', 'BMI', 'Smoker', 'Stroke',
-    'HeartDiseaseorAttack', 'PhysActivity', 'Fruits', 'Veggies',
-    'HvyAlcoholConsump', 'GenHlth', 'MentHlth', 'PhysHlth',
-    'DiffWalk', 'Sex', 'Age'
-]
-
 # Set page config with improved metadata
 st.set_page_config(
     page_title="Diabetes Risk Predictor",
@@ -65,7 +55,6 @@ st.markdown("""
 # Cache model and artifacts loading for efficiency
 @st.cache_data(show_spinner=False)
 def load_artifacts():
-    """Loads the machine learning model artifacts from a joblib file."""
     try:
         # Load the joblib file containing all artifacts
         artifacts = joblib.load('diabetes_artifacts_compressed.joblib')
@@ -86,18 +75,20 @@ def load_artifacts():
         }
     except Exception as e:
         st.error(f"Error loading model files: {str(e)}")
-        st.info("Please ensure 'diabetes_artifacts_compressed.joblib' is in the same directory.")
         return None
+
+# Initialize feature names (will be set after loading artifacts)
+FEATURE_NAMES = None
 
 # Sidebar navigation
 with st.sidebar:
     st.image("https://img.icons8.com/color/96/000000/diabetes.png", width=80)
     menu_option = st.radio("Navigation Menu",
-                            ["📊 Prediction", 
-                             "🔍 Model Analysis", 
-                             "ℹ️ About"],
-                            index=0,
-                            label_visibility="visible")
+                         ["📊 Prediction", 
+                          "🔍 Model Analysis", 
+                          "ℹ️ About"],
+                         index=0,
+                         label_visibility="visible")
 
 # Helper functions
 def yes_no_selectbox(label: str, help_text: str = "", key: str = None) -> int:
@@ -124,13 +115,13 @@ def validate_inputs(bmi: float, age: int, ment_hlth: int, phys_hlth: int) -> Tup
     """Validate user inputs and return status and error message."""
     errors = []
     if bmi < 10 or bmi > 60:
-        errors.append("BMI must be between 10 and 60.")
+        errors.append("BMI must be between 10 and 60")
     if age < 18 or age > 120:
-        errors.append("Age must be between 18 and 120.")
+        errors.append("Age must be between 18 and 120")
     if ment_hlth < 0 or ment_hlth > 30:
-        errors.append("Mental health days must be between 0 and 30.")
+        errors.append("Mental health days must be between 0 and 30")
     if phys_hlth < 0 or phys_hlth > 30:
-        errors.append("Physical health days must be between 0 and 30.")
+        errors.append("Physical health days must be between 0 and 30")
     
     return (len(errors) == 0, "<br>".join(errors))
 
@@ -144,19 +135,19 @@ def get_prevention_tips(prediction: int) -> str:
             "✅ Stay physically active with at least 150 minutes of moderate exercise per week."
         ],
         1: [
-            "⚠️ Increase physical activity to at least 150 minutes per week.",
-            "⚠️ Focus on a balanced diet with plenty of vegetables and whole grains.",
-            "⚠️ Lose 5-7% of body weight if overweight.",
-            "⚠️ Reduce intake of sugary foods and beverages.",
-            "⚠️ Get your blood sugar checked annually."
+            "⚠️ Increase physical activity to at least 150 minutes per week",
+            "⚠️ Focus on a balanced diet with plenty of vegetables and whole grains",
+            "⚠️ Lose 5-7% of body weight if overweight",
+            "⚠️ Reduce intake of sugary foods and beverages",
+            "⚠️ Get your blood sugar checked annually"
         ],
         2: [
-            "❗ Consult with a healthcare provider immediately.",
-            "❗ Monitor blood sugar levels regularly.",
-            "❗ Follow a diabetes management plan.",
-            "❗ Maintain a consistent meal schedule.",
-            "❗ Check your feet daily for cuts or sores.",
-            "❗ Keep up with regular eye exams."
+            "❗ Consult with a healthcare provider immediately",
+            "❗ Monitor blood sugar levels regularly",
+            "❗ Follow a diabetes management plan",
+            "❗ Maintain a consistent meal schedule",
+            "❗ Check your feet daily for cuts or sores",
+            "❗ Keep up with regular eye exams"
         ]
     }
     return "\n\n".join(tips.get(prediction, ["No specific recommendations available."]))
@@ -285,10 +276,14 @@ if menu_option == "📊 Prediction":
             st.error("Model not loaded properly. Please try again later.")
             st.stop()
         
+        # Set feature names based on loaded artifacts
+        global FEATURE_NAMES
+        FEATURE_NAMES = artifacts['selected_features'].tolist()
+        
         is_valid, error_msg = validate_inputs(BMI, Age, MentHlth, PhysHlth)
         
         if not is_valid:
-            st.error(f"Please correct the following errors:<br>{error_msg}", unsafe_allow_html=True)
+            st.error(f"Please correct the following errors:\n{error_msg}")
         else:
             with st.spinner('Calculating your diabetes risk...'):
                 progress_bar = st.progress(0)
@@ -299,21 +294,20 @@ if menu_option == "📊 Prediction":
                     status_text.text(f"Analyzing... {percent_complete}%")
                     time.sleep(0.02)
                 
-                # Create DataFrame with ALL original feature names as per ORIGINAL_FEATURE_ORDER
-                # The order of the values passed must match the order of columns in ORIGINAL_FEATURE_ORDER
+                # Create DataFrame with proper feature names
                 input_data = pd.DataFrame(
                     [[HighBP, HighChol, CholCheck, BMI, Smoker, Stroke,
                       HeartDiseaseorAttack, PhysActivity, Fruits, Veggies,
                       HvyAlcoholConsump, GenHlth, MentHlth, PhysHlth,
                       DiffWalk, Sex, Age]],
-                    columns=ORIGINAL_FEATURE_ORDER # Using the full list of 17 original features here
+                    columns=FEATURE_NAMES
                 )
                 
                 try:
-                    # 1. Scale the data (expects all 17 original features)
+                    # 1. Scale the data
                     input_scaled = artifacts['scaler'].transform(input_data)
                     
-                    # 2. Select features (reduces from 17 to the 15 features the model was trained on)
+                    # 2. Select features
                     input_selected = artifacts['selector'].transform(input_scaled)
                     
                     # 3. Make prediction
@@ -322,7 +316,7 @@ if menu_option == "📊 Prediction":
                     
                     class_names = {
                         0: "No diabetes",
-                        1: "Pre-diabetes",  
+                        1: "Pre-diabetes", 
                         2: "Diabetes"
                     }
                     
@@ -362,7 +356,7 @@ if menu_option == "📊 Prediction":
                     st.markdown("### 🔍 Potential Risk Factors")
                     risk_factors = []
                     if BMI >= 25:
-                        risk_factors.append(f"BMI of {BMI} (overweight/obese)")
+                        risk_factors.append(f"BMI of {BMI} (overweight)")
                     if HighBP:
                         risk_factors.append("High blood pressure")
                     if HighChol:
@@ -373,7 +367,7 @@ if menu_option == "📊 Prediction":
                         risk_factors.append("Smoking")
                     
                     if risk_factors:
-                        st.markdown("The following factors from your input may be contributing to your risk:")
+                        st.markdown("The following factors may be contributing to your risk:")
                         for factor in risk_factors:
                             st.markdown(f"- {factor}")
                     else:
@@ -384,8 +378,8 @@ if menu_option == "📊 Prediction":
             
             st.markdown("""
             <div class="disclaimer">
-            <strong>Disclaimer:</strong> This tool is for informational purposes only and is not a substitute  
-            for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician  
+            <strong>Disclaimer:</strong> This tool is for informational purposes only and is not a substitute 
+            for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician 
             or other qualified health provider with any questions you may have regarding a medical condition.
             </div>
             """, unsafe_allow_html=True)
@@ -435,21 +429,21 @@ elif menu_option == "🔍 Model Analysis":
             for idx in sorted_idx:
                 st.markdown(f"""
                 <div class="feature-importance">
-                <strong>{features[idx]}:</strong>  
+                <strong>{features[idx]}:</strong> 
                 <progress value="{importances[idx]}" max="{importances.max()}" style="width:100%; height:10px;"></progress>
                 {importances[idx]:.4f}
                 </div>
                 """, unsafe_allow_html=True)
         else:
-            st.warning("Feature importance data not available for this model (e.g., Logistic Regression).")
+            st.warning("Feature importance data not available for this model")
     
     with st.expander("🛠️ Technical Details"):
-        model_type = artifacts['model'].__class__.__name__ if artifacts and artifacts['model'] else "Unknown"
+        model_type = artifacts['model'].__class__.__name__ if artifacts else "Unknown"
         st.markdown(f"""
         **Model Architecture:**
         - Algorithm: {model_type}
-        - Classes: {artifacts['classes'].tolist() if artifacts and 'classes' in artifacts else 'Unknown'}
-        - Features: {len(artifacts['selected_features']) if artifacts and 'selected_features' in artifacts else 'Unknown'}
+        - Classes: {artifacts['classes'].tolist() if artifacts else 'Unknown'}
+        - Features: {len(artifacts['selected_features']) if artifacts else 'Unknown'}
         
         **Data Preprocessing:**
         - Standard Scaling: Yes
@@ -467,7 +461,7 @@ elif menu_option == "ℹ️ About":
     st.markdown("""
     ### Diabetes Risk Predictor
     
-    This application helps assess an individual's risk of developing diabetes based on  
+    This application helps assess an individual's risk of developing diabetes based on 
     health indicators and lifestyle factors.
     """)
     
@@ -481,12 +475,12 @@ elif menu_option == "ℹ️ About":
     
     with st.expander("👨‍⚕️ Medical Disclaimer"):
         st.markdown("""
-        **Important:** This tool does not provide medical advice and is not a substitute  
-        for professional medical evaluation, diagnosis, or treatment. Always seek the  
-        advice of your physician or other qualified health provider with any questions  
+        **Important:** This tool does not provide medical advice and is not a substitute 
+        for professional medical evaluation, diagnosis, or treatment. Always seek the 
+        advice of your physician or other qualified health provider with any questions 
         you may have regarding a medical condition.
         
-        The predictions are based on statistical models and may not be accurate for all  
+        The predictions are based on statistical models and may not be accurate for all 
         individuals. Many factors beyond those included in this tool can affect diabetes risk.
         """)
     
