@@ -277,7 +277,7 @@ if menu_option == "📊 Prediction":
             st.stop()
         
         # Set feature names based on loaded artifacts
-        global FEATURE_NAMES
+        #global FEATURE_NAMES
         FEATURE_NAMES = artifacts['selected_features'].tolist()
         
         is_valid, error_msg = validate_inputs(BMI, Age, MentHlth, PhysHlth)
