@@ -271,90 +271,48 @@ if menu_option == "📊 Prediction":
         submitted = st.form_submit_button("Predict Diabetes Risk", use_container_width=True)
 
     # In the prediction section, replace the DataFrame creation with:
-if submitted:
-    artifacts = load_artifacts()
-    if not artifacts:
-        st.error("Model not loaded properly. Please try again later.")
-        st.stop()
-    
-    # Get the selected features from artifacts
-    selected_features = artifacts['selected_features'].tolist()
-    
-    # Create a dictionary of all possible features
-    all_features = {
-        'HighBP': HighBP,
-        'HighChol': HighChol,
-        'CholCheck': CholCheck,
-        'BMI': BMI,
-        'Smoker': Smoker,
-        'Stroke': Stroke,
-        'HeartDiseaseorAttack': HeartDiseaseorAttack,
-        'PhysActivity': PhysActivity,
-        'Fruits': Fruits,
-        'Veggies': Veggies,
-        'HvyAlcoholConsump': HvyAlcoholConsump,
-        'GenHlth': GenHlth,
-        'MentHlth': MentHlth,
-        'PhysHlth': PhysHlth,
-        'DiffWalk': DiffWalk,
-        'Sex': Sex,
-        'Age': Age
-    }
-    
-    # Create DataFrame with only the selected features
-    input_data = pd.DataFrame(
-        [[all_features[feature] for feature in selected_features]],
-        columns=selected_features
-    )
-    
-    try:
-        # Rest of your prediction code remains the same
-        input_scaled = artifacts['scaler'].transform(input_data)
-        input_selected = artifacts['selector'].transform(input_scaled)
-        prediction = artifacts['model'].predict(input_selected)[0]
-        # ... continue with the rest of your code ...
-    # if submitted:
-    #     artifacts = load_artifacts()
-    #     if not artifacts:
-    #         st.error("Model not loaded properly. Please try again later.")
-    #         st.stop()
+    if submitted:
+        artifacts = load_artifacts()
+        if not artifacts:
+            st.error("Model not loaded properly. Please try again later.")
+            st.stop()
         
-    #     # Set feature names based on loaded artifacts
+        # Set feature names based on loaded artifacts
         
-    #     FEATURE_NAMES = artifacts['selected_features'].tolist()
+        FEATURE_NAMES = artifacts['selected_features'].tolist()
         
-    #     is_valid, error_msg = validate_inputs(BMI, Age, MentHlth, PhysHlth)
+        is_valid, error_msg = validate_inputs(BMI, Age, MentHlth, PhysHlth)
         
-    #     if not is_valid:
-    #         st.error(f"Please correct the following errors:\n{error_msg}")
-    #     else:
-    #         with st.spinner('Calculating your diabetes risk...'):
-    #             progress_bar = st.progress(0)
-    #             status_text = st.empty()
+        if not is_valid:
+            st.error(f"Please correct the following errors:\n{error_msg}")
+        else:
+            with st.spinner('Calculating your diabetes risk...'):
+                progress_bar = st.progress(0)
+                status_text = st.empty()
                 
-    #             for percent_complete in range(101):
-    #                 progress_bar.progress(percent_complete)
-    #                 status_text.text(f"Analyzing... {percent_complete}%")
-    #                 time.sleep(0.02)
+                for percent_complete in range(101):
+                    progress_bar.progress(percent_complete)
+                    status_text.text(f"Analyzing... {percent_complete}%")
+                    time.sleep(0.02)
                 
-    #             # Create DataFrame with proper feature names
-    #             input_data = pd.DataFrame(
-    #                 [[HighBP, HighChol, CholCheck, BMI, Smoker, Stroke,
-    #                   HeartDiseaseorAttack, PhysActivity, Fruits, Veggies,
-    #                   HvyAlcoholConsump, GenHlth, MentHlth, PhysHlth,
-    #                   DiffWalk, Sex, Age]],
-    #                 columns=FEATURE_NAMES
-    #             )
+                # Create DataFrame with proper feature names
+                input_data = pd.DataFrame(
+                    [[HighBP, HighChol, CholCheck, BMI, Smoker, Stroke,
+                      HeartDiseaseorAttack, PhysActivity, Fruits, Veggies,
+                      HvyAlcoholConsump, GenHlth, MentHlth, PhysHlth,
+                      DiffWalk, Sex, Age]],
+                    columns=FEATURE_NAMES
+                )
                 
-    #             try:
-    #                 # 1. Scale the data
-    #                 input_scaled = artifacts['scaler'].transform(input_data)
+                try:
+                    # 1. Scale the data
+                    input_scaled = artifacts['scaler'].transform(input_data)
                     
-    #                 # 2. Select features
-    #                 input_selected = artifacts['selector'].transform(input_scaled)
+                    # 2. Select features
+                    input_selected = artifacts['selector'].transform(input_scaled)
                     
-    #                 # 3. Make prediction
-    #                 prediction = artifacts['model'].predict(input_selected)[0]
+                    # 3. Make prediction
+                    prediction = artifacts['model'].predict(input_selected)[0]
                     probabilities = artifacts['model'].predict_proba(input_selected)[0]
                     
                     class_names = {
