@@ -78,7 +78,7 @@ def load_artifacts():
         return None
 
 # Initialize feature names (will be set after loading artifacts)
-FEATURE_NAMES = None
+global FEATURE_NAMES = None
 
 # Sidebar navigation
 with st.sidebar:
