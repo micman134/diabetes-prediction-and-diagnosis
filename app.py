@@ -61,7 +61,7 @@ def load_artifacts():
         
         # Extract components
         scaler = artifacts['scaler']
-        model = artifacts['model']  # Using only the best model
+        model = artifacts['model']
         selector = artifacts['selector']
         selected_features = artifacts['selected_features']
         classes = artifacts['classes']
@@ -76,9 +76,6 @@ def load_artifacts():
     except Exception as e:
         st.error(f"Error loading model files: {str(e)}")
         return None
-
-# Initialize feature names (will be set after loading artifacts)
-FEATURE_NAMES = None
 
 # Sidebar navigation
 with st.sidebar:
@@ -270,16 +267,11 @@ if menu_option == "📊 Prediction":
         st.markdown("<small>* Required fields</small>", unsafe_allow_html=True)
         submitted = st.form_submit_button("Predict Diabetes Risk", use_container_width=True)
 
-    # In the prediction section, replace the DataFrame creation with:
     if submitted:
         artifacts = load_artifacts()
         if not artifacts:
             st.error("Model not loaded properly. Please try again later.")
             st.stop()
-        
-        # Set feature names based on loaded artifacts
-        
-        FEATURE_NAMES = artifacts['selected_features'].tolist()
         
         is_valid, error_msg = validate_inputs(BMI, Age, MentHlth, PhysHlth)
         
@@ -295,25 +287,48 @@ if menu_option == "📊 Prediction":
                     status_text.text(f"Analyzing... {percent_complete}%")
                     time.sleep(0.02)
                 
-                # Create DataFrame with proper feature names
+                # Create dictionary of all possible features
+                all_features = {
+                    'HighBP': HighBP,
+                    'HighChol': HighChol,
+                    'CholCheck': CholCheck,
+                    'BMI': BMI,
+                    'Smoker': Smoker,
+                    'Stroke': Stroke,
+                    'HeartDiseaseorAttack': HeartDiseaseorAttack,
+                    'PhysActivity': PhysActivity,
+                    'Fruits': Fruits,
+                    'Veggies': Veggies,
+                    'HvyAlcoholConsump': HvyAlcoholConsump,
+                    'GenHlth': GenHlth,
+                    'MentHlth': MentHlth,
+                    'PhysHlth': PhysHlth,
+                    'DiffWalk': DiffWalk,
+                    'Sex': Sex,
+                    'Age': Age
+                }
+                
+                # Get only the selected features in the correct order
+                selected_features = artifacts['selected_features'].tolist()
+                input_values = [all_features[feature] for feature in selected_features]
+                
+                # Create DataFrame with only the selected features
                 input_data = pd.DataFrame(
-                    [[HighBP, HighChol, CholCheck, BMI, Smoker, Stroke,
-                      HeartDiseaseorAttack, PhysActivity, Fruits, Veggies,
-                      HvyAlcoholConsump, GenHlth, MentHlth, PhysHlth,
-                      DiffWalk, Sex, Age]],
-                    columns=FEATURE_NAMES
+                    [input_values],
+                    columns=selected_features
                 )
                 
                 try:
                     # 1. Scale the data
                     input_scaled = artifacts['scaler'].transform(input_data)
                     
-                    # 2. Select features
-                    input_selected = artifacts['selector'].transform(input_scaled)
+                    # 2. Select features (already done during training)
+                    # Note: This step might be redundant since we're already using selected features
+                    # input_selected = artifacts['selector'].transform(input_scaled)
                     
                     # 3. Make prediction
-                    prediction = artifacts['model'].predict(input_selected)[0]
-                    probabilities = artifacts['model'].predict_proba(input_selected)[0]
+                    prediction = artifacts['model'].predict(input_scaled)[0]
+                    probabilities = artifacts['model'].predict_proba(input_scaled)[0]
                     
                     class_names = {
                         0: "No diabetes",
