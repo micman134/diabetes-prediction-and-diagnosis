@@ -312,6 +312,15 @@ if menu_option == "📊 Prediction":
                 )
                 
                 try:
+                    # Display model information
+                    model_type = "LightGBM"  # Hardcoded since we know it's LightGBM
+                    st.markdown(f"""
+                    ### Model Information
+                    **Algorithm:** {model_type}  
+                    **Training Accuracy:** 84.59%  
+                    **Training Weighted F1-Score:** 82.09%
+                    """)
+                    
                     # 1. Scale the data
                     input_scaled = artifacts['scaler'].transform(input_data)
                     
@@ -405,23 +414,30 @@ elif menu_option == "🔍 Model Analysis":
     
     with st.expander("📈 Model Performance Metrics"):
         st.markdown("""
-        **Model Evaluation Results:**
-        - Accuracy: 85.2%
-        - Precision: 84.7%
-        - Recall: 82.9%
-        - F1 Score: 83.8%
-        - ROC AUC: 0.92
+        **Model Evaluation Results (LightGBM):**
+        - Accuracy: 84.59%
+        - Weighted F1: 82.09%
+        - ROC AUC (OvR): 76.30%
         
-        *Metrics based on test dataset evaluation*
+        **Detailed Classification Report:**
         """)
         
-        st.markdown("**Confusion Matrix:**")
-        cm_data = pd.DataFrame({
-            'Predicted No Diabetes': [1250, 85, 32],
-            'Predicted Pre-diabetes': [65, 420, 48],
-            'Predicted Diabetes': [15, 35, 280]
-        }, index=['Actual No Diabetes', 'Actual Pre-diabetes', 'Actual Diabetes'])
-        st.dataframe(cm_data.style.highlight_max(axis=1, color='#d4edda'))
+        # Create a DataFrame for the classification report
+        report_data = {
+            'Class': ['0.0 (No Diabetes)', '1.0 (Pre-diabetes)', '2.0 (Diabetes)', 'Macro Avg', 'Weighted Avg'],
+            'Precision': [0.88, 0.00, 0.50, 0.46, 0.81],
+            'Recall': [0.96, 0.00, 0.28, 0.41, 0.85],
+            'F1-Score': [0.91, 0.00, 0.36, 0.43, 0.82],
+            'Support': [64111, 1389, 10604, 76104, 76104]
+        }
+        
+        report_df = pd.DataFrame(report_data)
+        st.dataframe(report_df.style.format({
+            'Precision': '{:.2f}',
+            'Recall': '{:.2f}',
+            'F1-Score': '{:.2f}',
+            'Support': '{:,}'
+        }))
     
     with st.expander("⚖️ Feature Importance"):
         st.markdown("""
@@ -447,21 +463,25 @@ elif menu_option == "🔍 Model Analysis":
             st.warning("Feature importance data not available for this model")
     
     with st.expander("🛠️ Technical Details"):
-        model_type = artifacts['model'].__class__.__name__
-        st.markdown(f"""
+        st.markdown("""
         **Model Architecture:**
-        - Algorithm: {model_type}
-        - Classes: {artifacts['classes']}
-        - Features: {len(artifacts['selected_features'])}
+        - Algorithm: LightGBM
+        - Objective: multiclass
+        - Classes: [0.0, 1.0, 2.0]
+        - Features: 15 (selected via SelectKBest)
+        
+        **Training Performance:**
+        - Best model selected from: [XGBoost, LightGBM, RandomForest, LogisticRegression, DecisionTree]
+        - LightGBM achieved highest weighted F1-score (82.09%)
         
         **Data Preprocessing:**
         - Standard Scaling: Yes
-        - Feature Selection: SelectKBest (k=17)
+        - Feature Selection: SelectKBest (k=15)
         - Class balancing: SMOTE
         
         **Training Data:**
         - Source: CDC Behavioral Risk Factor Surveillance System (BRFSS)
-        - Samples: ~250,000
+        - Samples: 253,680 (original), balanced via SMOTE
         - Year: 2015
         """)
 
@@ -495,12 +515,19 @@ elif menu_option == "ℹ️ About":
     
     with st.expander("🛠️ Development Team"):
         st.markdown("""
-        - **Data Scientists**: [], []
-        - **Medical Advisors**: Dr. [], Dr. []
-        - **Developers**: [], []
+        - **Data Scientists**: [Your Name], [Colleague Name]
+        - **Medical Advisors**: Dr. [Name], Dr. [Name]
+        - **Developers**: [Your Name], [Team Member]
         
         **Version**: 1.2.0
         **Last Updated**: June 2024
         """)
     
-    
+    with st.expander("📧 Contact Us"):
+        st.markdown("""
+        For questions or feedback about this tool:
+        
+        Email: [healthtools@example.com](mailto:healthtools@example.com)  
+        Phone: (555) 123-4567  
+        Address: 123 Health Street, Suite 100, Anytown, ST 12345
+        """)
