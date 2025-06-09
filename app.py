@@ -1,6 +1,6 @@
 import streamlit as st
 import numpy as np
-import pickle
+import joblib
 import pandas as pd
 import plotly.graph_objects as go
 import time
@@ -52,20 +52,33 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Cache model and scaler loading for efficiency
+# Cache model and artifacts loading for efficiency
 @st.cache_data(show_spinner=False)
 def load_artifacts():
     try:
-        with open('scalers.pkl', 'rb') as f:
-            scaler = pickle.load(f)
-        with open('best_models.pkl', 'rb') as f:
-            model = pickle.load(f)
-        return scaler, model
+        # Load the joblib file containing all artifacts
+        artifacts = joblib.load('diabetes_artifacts_compressed.joblib')
+        
+        # Extract components
+        scaler = artifacts['scaler']
+        model = artifacts['model']  # Using only the best model
+        selector = artifacts['selector']
+        selected_features = artifacts['selected_features']
+        classes = artifacts['classes']
+        
+        return {
+            'scaler': scaler,
+            'model': model,
+            'selector': selector,
+            'selected_features': selected_features,
+            'classes': classes
+        }
     except Exception as e:
         st.error(f"Error loading model files: {str(e)}")
-        return None, None
+        return None
 
-scaler, model = load_artifacts()
+# Initialize feature names (will be set after loading artifacts)
+FEATURE_NAMES = None
 
 # Sidebar navigation
 with st.sidebar:
@@ -148,14 +161,6 @@ def get_risk_class(prediction: int) -> str:
     }
     text, style = classes.get(prediction, ("Unknown", ""))
     return f'<span class="{style}">{text}</span>'
-
-# Feature names for the model
-FEATURE_NAMES = [
-    'HighBP', 'HighChol', 'CholCheck', 'BMI', 'Smoker', 'Stroke',
-    'HeartDiseaseorAttack', 'PhysActivity', 'Fruits', 'Veggies',
-    'HvyAlcoholConsump', 'GenHlth', 'MentHlth', 'PhysHlth',
-    'DiffWalk', 'Sex', 'Age'
-]
 
 # Main content based on menu selection
 if menu_option == "📊 Prediction":
@@ -266,9 +271,14 @@ if menu_option == "📊 Prediction":
         submitted = st.form_submit_button("Predict Diabetes Risk", use_container_width=True)
 
     if submitted:
-        if scaler is None or model is None:
+        artifacts = load_artifacts()
+        if not artifacts:
             st.error("Model not loaded properly. Please try again later.")
             st.stop()
+        
+        # Set feature names based on loaded artifacts
+        global FEATURE_NAMES
+        FEATURE_NAMES = artifacts['selected_features'].tolist()
         
         is_valid, error_msg = validate_inputs(BMI, Age, MentHlth, PhysHlth)
         
@@ -294,11 +304,21 @@ if menu_option == "📊 Prediction":
                 )
                 
                 try:
-                    input_scaled = scaler.transform(input_data)
-                    prediction = model.predict(input_scaled)[0]
-                    probabilities = model.predict_proba(input_scaled)[0]
+                    # 1. Scale the data
+                    input_scaled = artifacts['scaler'].transform(input_data)
                     
-                    class_names = ["No diabetes", "Pre-diabetes", "Diabetes"]
+                    # 2. Select features
+                    input_selected = artifacts['selector'].transform(input_scaled)
+                    
+                    # 3. Make prediction
+                    prediction = artifacts['model'].predict(input_selected)[0]
+                    probabilities = artifacts['model'].predict_proba(input_selected)[0]
+                    
+                    class_names = {
+                        0: "No diabetes",
+                        1: "Pre-diabetes", 
+                        2: "Diabetes"
+                    }
                     
                     st.success("Analysis complete!")
                     progress_bar.empty()
@@ -314,7 +334,7 @@ if menu_option == "📊 Prediction":
                     
                     fig = go.Figure(go.Bar(
                         x=probabilities * 100,
-                        y=class_names,
+                        y=[class_names[i] for i in range(len(class_names))],
                         orientation='h',
                         text=[f"{p*100:.1f}%" for p in probabilities],
                         textposition='auto',
@@ -366,6 +386,8 @@ if menu_option == "📊 Prediction":
 
 elif menu_option == "🔍 Model Analysis":
     st.title("🔍 Model Analysis")
+    artifacts = load_artifacts()
+    
     st.markdown("""
     ### Understanding the Diabetes Risk Prediction Model
     
@@ -379,8 +401,9 @@ elif menu_option == "🔍 Model Analysis":
         - Precision: 84.7%
         - Recall: 82.9%
         - F1 Score: 83.8%
+        - ROC AUC: 0.92
         
-        *Metrics based on 10-fold cross-validation with test dataset*
+        *Metrics based on test dataset evaluation*
         """)
         
         st.markdown("**Confusion Matrix:**")
@@ -396,44 +419,41 @@ elif menu_option == "🔍 Model Analysis":
         The following features have the most significant impact on the prediction:
         """)
         
-        features = [
-            ("BMI", 0.28),
-            ("Age", 0.22),
-            ("General Health", 0.15),
-            ("High Blood Pressure", 0.12),
-            ("Physical Activity", 0.08),
-            ("High Cholesterol", 0.07),
-            ("Difficulty Walking", 0.05),
-            ("Days Physical Health Not Good", 0.03)
-        ]
-        
-        for feature, importance in features:
-            st.markdown(f"""
-            <div class="feature-importance">
-            <strong>{feature}:</strong> 
-            <progress value="{importance}" max="0.3" style="width:100%; height:10px;"></progress>
-            {importance:.2f}
-            </div>
-            """, unsafe_allow_html=True)
+        if artifacts and hasattr(artifacts['model'], 'feature_importances_'):
+            features = artifacts['selected_features'].tolist()
+            importances = artifacts['model'].feature_importances_
+            
+            # Sort features by importance
+            sorted_idx = np.argsort(importances)[::-1]
+            
+            for idx in sorted_idx:
+                st.markdown(f"""
+                <div class="feature-importance">
+                <strong>{features[idx]}:</strong> 
+                <progress value="{importances[idx]}" max="{importances.max()}" style="width:100%; height:10px;"></progress>
+                {importances[idx]:.4f}
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.warning("Feature importance data not available for this model")
     
     with st.expander("🛠️ Technical Details"):
-        st.markdown("""
+        model_type = artifacts['model'].__class__.__name__ if artifacts else "Unknown"
+        st.markdown(f"""
         **Model Architecture:**
-        - Algorithm: Random Forest Classifier
-        - Number of Trees: 200
-        - Max Depth: 15
-        - Criterion: Gini Impurity
+        - Algorithm: {model_type}
+        - Classes: {artifacts['classes'].tolist() if artifacts else 'Unknown'}
+        - Features: {len(artifacts['selected_features']) if artifacts else 'Unknown'}
         
         **Data Preprocessing:**
-        - Standard Scaling for numerical features
-        - No special encoding needed for binary features
-        - Class balancing using SMOTE
+        - Standard Scaling: Yes
+        - Feature Selection: SelectKBest (k=15)
+        - Class balancing: SMOTE
         
         **Training Data:**
         - Source: CDC Behavioral Risk Factor Surveillance System (BRFSS)
-        - Samples: 253,680
-        - Features: 21
-        - Year: 2022
+        - Samples: ~250,000
+        - Year: 2015
         """)
 
 elif menu_option == "ℹ️ About":
