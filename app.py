@@ -456,7 +456,7 @@ elif menu_option == "🔍 Model Analysis":
         
         **Data Preprocessing:**
         - Standard Scaling: Yes
-        - Feature Selection: SelectKBest (k=15)
+        - Feature Selection: SelectKBest (k=17)
         - Class balancing: SMOTE
         
         **Training Data:**
@@ -495,19 +495,12 @@ elif menu_option == "ℹ️ About":
     
     with st.expander("🛠️ Development Team"):
         st.markdown("""
-        - **Data Scientists**: [Your Name], [Colleague Name]
-        - **Medical Advisors**: Dr. [Name], Dr. [Name]
-        - **Developers**: [Your Name], [Team Member]
+        - **Data Scientists**: [], []
+        - **Medical Advisors**: Dr. [], Dr. []
+        - **Developers**: [], []
         
         **Version**: 1.2.0
         **Last Updated**: June 2024
         """)
     
-    with st.expander("📧 Contact Us"):
-        st.markdown("""
-        For questions or feedback about this tool:
-        
-        Email: [healthtools@example.com](mailto:healthtools@example.com)  
-        Phone: (555) 123-4567  
-        Address: 123 Health Street, Suite 100, Anytown, ST 12345
-        """)
+    
