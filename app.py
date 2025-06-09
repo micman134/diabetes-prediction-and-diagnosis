@@ -84,11 +84,11 @@ FEATURE_NAMES = None
 with st.sidebar:
     st.image("https://img.icons8.com/color/96/000000/diabetes.png", width=80)
     menu_option = st.radio("Navigation Menu",
-                         ["📊 Prediction", 
-                          "🔍 Model Analysis", 
-                          "ℹ️ About"],
-                         index=0,
-                         label_visibility="visible")
+                           ["📊 Prediction", 
+                            "🔍 Model Analysis", 
+                            "ℹ️ About"],
+                           index=0,
+                           label_visibility="visible")
 
 # Helper functions
 def yes_no_selectbox(label: str, help_text: str = "", key: str = None) -> int:
@@ -276,14 +276,14 @@ if menu_option == "📊 Prediction":
             st.error("Model not loaded properly. Please try again later.")
             st.stop()
         
-        # Set feature names based on loaded artifacts
-        #global FEATURE_NAMES
+        # CORRECTED: The 'global' keyword is removed. 
+        # The variable is already global, so we can just re-assign it.
         FEATURE_NAMES = artifacts['selected_features'].tolist()
         
         is_valid, error_msg = validate_inputs(BMI, Age, MentHlth, PhysHlth)
         
         if not is_valid:
-            st.error(f"Please correct the following errors:\n{error_msg}")
+            st.error(f"Please correct the following errors:<br>{error_msg}", unsafe_allow_html=True)
         else:
             with st.spinner('Calculating your diabetes risk...'):
                 progress_bar = st.progress(0)
@@ -356,7 +356,7 @@ if menu_option == "📊 Prediction":
                     st.markdown("### 🔍 Potential Risk Factors")
                     risk_factors = []
                     if BMI >= 25:
-                        risk_factors.append(f"BMI of {BMI} (overweight)")
+                        risk_factors.append(f"BMI of {BMI} (overweight/obese)")
                     if HighBP:
                         risk_factors.append("High blood pressure")
                     if HighChol:
@@ -367,7 +367,7 @@ if menu_option == "📊 Prediction":
                         risk_factors.append("Smoking")
                     
                     if risk_factors:
-                        st.markdown("The following factors may be contributing to your risk:")
+                        st.markdown("The following factors from your input may be contributing to your risk:")
                         for factor in risk_factors:
                             st.markdown(f"- {factor}")
                     else:
