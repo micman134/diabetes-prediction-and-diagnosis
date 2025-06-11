@@ -5,6 +5,10 @@ import pandas as pd
 import plotly.graph_objects as go
 import time
 from typing import Tuple
+import firebase_admin
+from firebase_admin import credentials, firestore
+from datetime import datetime
+import uuid
 
 # Set page config with improved metadata
 st.set_page_config(
@@ -52,14 +56,56 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Initialize Firebase
+def initialize_firebase():
+    try:
+        if not firebase_admin._apps:
+            firebase_config = {
+                "type": st.secrets["firebase_creds"]["type"],
+                "project_id": st.secrets["firebase_creds"]["project_id"],
+                "private_key_id": st.secrets["firebase_creds"]["private_key_id"],
+                "private_key": st.secrets["firebase_creds"]["private_key"].replace('\\n', '\n'),
+                "client_email": st.secrets["firebase_creds"]["client_email"],
+                "client_id": st.secrets["firebase_creds"]["client_id"],
+                "auth_uri": st.secrets["firebase_creds"]["auth_uri"],
+                "token_uri": st.secrets["firebase_creds"]["token_uri"],
+                "auth_provider_x509_cert_url": st.secrets["firebase_creds"]["auth_provider_x509_cert_url"],
+                "client_x509_cert_url": st.secrets["firebase_creds"]["client_x509_cert_url"],
+                "universe_domain": st.secrets["firebase_creds"]["universe_domain"]
+            }
+            
+            cred = credentials.Certificate(firebase_config)
+            firebase_admin.initialize_app(cred)
+        return firestore.client()
+    except Exception as e:
+        st.error(f"Failed to initialize Firebase: {str(e)}")
+        return None
+
+# Initialize Firebase connection
+db = initialize_firebase()
+
+# Store prediction in Firestore
+def store_prediction(prediction_data):
+    if db:
+        try:
+            # Add timestamp if not exists
+            if 'timestamp' not in prediction_data:
+                prediction_data['timestamp'] = datetime.now().isoformat()
+            
+            # Add a new document with a generated ID
+            doc_ref = db.collection("predictions").add(prediction_data)
+            return True
+        except Exception as e:
+            st.error(f"Failed to store prediction: {str(e)}")
+            return False
+    return False
+
 # Cache model and artifacts loading for efficiency
 @st.cache_data(show_spinner=False)
 def load_artifacts():
     try:
-        # Load the joblib file containing all artifacts
         artifacts = joblib.load('diabetes_artifacts_compressed.joblib')
         
-        # Convert numpy arrays to lists if needed
         if hasattr(artifacts['selected_features'], 'tolist'):
             artifacts['selected_features'] = artifacts['selected_features'].tolist()
         if hasattr(artifacts['classes'], 'tolist'):
@@ -70,19 +116,8 @@ def load_artifacts():
         st.error(f"Error loading model files: {str(e)}")
         return None
 
-# Sidebar navigation
-with st.sidebar:
-    st.image("https://img.icons8.com/color/96/000000/diabetes.png", width=80)
-    menu_option = st.radio("Navigation Menu",
-                         ["📊 Prediction", 
-                          "🔍 Model Analysis", 
-                          "ℹ️ About"],
-                         index=0,
-                         label_visibility="visible")
-
 # Helper functions
 def yes_no_selectbox(label: str, help_text: str = "", key: str = None) -> int:
-    """Create a yes/no selectbox and return 1 for Yes, 0 for No."""
     choice = st.selectbox(
         label,
         ['No', 'Yes'],
@@ -92,7 +127,6 @@ def yes_no_selectbox(label: str, help_text: str = "", key: str = None) -> int:
     return 1 if choice == 'Yes' else 0
 
 def sex_selectbox(label: str, key: str = None) -> int:
-    """Create a sex selectbox and return 1 for Male, 0 for Female."""
     choice = st.selectbox(
         label,
         ['Female', 'Male'],
@@ -102,7 +136,6 @@ def sex_selectbox(label: str, key: str = None) -> int:
     return 1 if choice == 'Male' else 0
 
 def validate_inputs(bmi: float, age: int, ment_hlth: int, phys_hlth: int) -> Tuple[bool, str]:
-    """Validate user inputs and return status and error message."""
     errors = []
     if bmi < 10 or bmi > 60:
         errors.append("BMI must be between 10 and 60")
@@ -116,7 +149,6 @@ def validate_inputs(bmi: float, age: int, ment_hlth: int, phys_hlth: int) -> Tup
     return (len(errors) == 0, "<br>".join(errors))
 
 def get_prevention_tips(prediction: int) -> str:
-    """Return prevention tips based on prediction class."""
     tips = {
         0: [
             "✅ Maintain your healthy lifestyle!",
@@ -143,7 +175,6 @@ def get_prevention_tips(prediction: int) -> str:
     return "\n\n".join(tips.get(prediction, ["No specific recommendations available."]))
 
 def get_risk_class(prediction: int) -> str:
-    """Return risk classification with appropriate styling."""
     classes = {
         0: ("Low Risk", "risk-low"),
         1: ("Medium Risk", "risk-medium"),
@@ -151,6 +182,16 @@ def get_risk_class(prediction: int) -> str:
     }
     text, style = classes.get(prediction, ("Unknown", ""))
     return f'<span class="{style}">{text}</span>'
+
+# Sidebar navigation
+with st.sidebar:
+    st.image("https://img.icons8.com/color/96/000000/diabetes.png", width=80)
+    menu_option = st.radio("Navigation Menu",
+                         ["📊 Prediction", 
+                          "🔍 Model Analysis", 
+                          "ℹ️ About"],
+                         index=0,
+                         label_visibility="visible")
 
 # Main content based on menu selection
 if menu_option == "📊 Prediction":
@@ -313,7 +354,7 @@ if menu_option == "📊 Prediction":
                 
                 try:
                     # Display model information
-                    model_type = "LightGBM"  # Hardcoded since we know it's LightGBM
+                    model_type = "LightGBM"
                     st.markdown(f"""
                     ### Model Information
                     **Algorithm:** {model_type}  
@@ -386,6 +427,21 @@ if menu_option == "📊 Prediction":
                             st.markdown(f"- {factor}")
                     else:
                         st.markdown("No significant risk factors identified from your inputs.")
+                    
+                    # Store prediction in Firebase
+                    prediction_data = {
+                        "user_inputs": all_features,
+                        "prediction": int(prediction),
+                        "probabilities": [float(p) for p in probabilities],
+                        "risk_class": get_risk_class(prediction).split('>')[1].split('<')[0],
+                        "model_version": "1.0",
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    
+                    if store_prediction(prediction_data):
+                        st.toast("Prediction saved successfully!", icon="✅")
+                    else:
+                        st.warning("Prediction completed but couldn't save to database")
                     
                 except Exception as e:
                     st.error(f"An error occurred during prediction: {str(e)}")
@@ -522,5 +578,3 @@ elif menu_option == "ℹ️ About":
         **Version**: 1.2.0
         **Last Updated**: June 2024
         """)
-    
-
