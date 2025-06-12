@@ -798,7 +798,7 @@ def main_app():
             - Algorithm: LightGBM
             - Objective: multiclass
             - Classes: [0.0, 1.0, 2.0]
-            - Features: 15 (selected via SelectKBest)
+            - Features: 17 (selected via SelectKBest)
             
             **Training Performance:**
             - Best model selected from: [XGBoost, LightGBM, RandomForest, LogisticRegression, DecisionTree]
@@ -806,7 +806,7 @@ def main_app():
             
             **Data Preprocessing:**
             - Standard Scaling: Yes
-            - Feature Selection: SelectKBest (k=15)
+            - Feature Selection: SelectKBest (k=17)
             - Class balancing: SMOTE
             
             **Training Data:**
