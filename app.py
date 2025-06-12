@@ -319,6 +319,47 @@ def signup_page():
                 st.session_state.page = "login"
                 st.rerun()
 
+# Add this new function before the main app flow
+def show_landing_page():
+    st.title("🩺 Diabetes Risk Predictor")
+    st.markdown("""
+    ## Welcome to the Diabetes Risk Assessment Tool
+    
+    This application helps you assess your risk of developing diabetes based on 
+    health indicators and lifestyle factors. Please login or create an account 
+    from the sidebar to get started.
+    """)
+    
+    with st.expander("📊 How it works"):
+        st.markdown("""
+        - Answer questions about your health and lifestyle
+        - Our advanced machine learning model analyzes your risk factors
+        - Get a personalized risk assessment with actionable recommendations
+        - Track your risk over time (when logged in)
+        """)
+    
+    with st.expander("🔬 About the Model"):
+        st.markdown("""
+        - **Algorithm**: LightGBM (Gradient Boosting)
+        - **Accuracy**: 84.59%
+        - **Training Data**: CDC Behavioral Risk Factor Surveillance System
+        - **Features**: 15 key health indicators including BMI, age, and lifestyle factors
+        """)
+    
+    with st.expander("👨‍⚕️ Medical Disclaimer"):
+        st.markdown("""
+        **Important:** This tool does not provide medical advice and is not a substitute 
+        for professional medical evaluation, diagnosis, or treatment. Always seek the 
+        advice of your physician with any questions you may have regarding a medical condition.
+        """)
+    
+    st.image("https://img.icons8.com/color/96/000000/diabetes.png", width=80)
+    st.markdown("""
+    <div style="text-align: center; margin-top: 20px;">
+        <small>Please login from the sidebar to access the full assessment tool</small>
+    </div>
+    """, unsafe_allow_html=True)
+
 # Main App Pages
 def main_app():
     # Sidebar navigation and user info
@@ -800,43 +841,3 @@ elif st.session_state.page == "signup":
 elif st.session_state.page == "app":
     main_app()
 
-# Add this new function before the main app flow
-def show_landing_page():
-    st.title("🩺 Diabetes Risk Predictor")
-    st.markdown("""
-    ## Welcome to the Diabetes Risk Assessment Tool
-    
-    This application helps you assess your risk of developing diabetes based on 
-    health indicators and lifestyle factors. Please login or create an account 
-    from the sidebar to get started.
-    """)
-    
-    with st.expander("📊 How it works"):
-        st.markdown("""
-        - Answer questions about your health and lifestyle
-        - Our advanced machine learning model analyzes your risk factors
-        - Get a personalized risk assessment with actionable recommendations
-        - Track your risk over time (when logged in)
-        """)
-    
-    with st.expander("🔬 About the Model"):
-        st.markdown("""
-        - **Algorithm**: LightGBM (Gradient Boosting)
-        - **Accuracy**: 84.59%
-        - **Training Data**: CDC Behavioral Risk Factor Surveillance System
-        - **Features**: 15 key health indicators including BMI, age, and lifestyle factors
-        """)
-    
-    with st.expander("👨‍⚕️ Medical Disclaimer"):
-        st.markdown("""
-        **Important:** This tool does not provide medical advice and is not a substitute 
-        for professional medical evaluation, diagnosis, or treatment. Always seek the 
-        advice of your physician with any questions you may have regarding a medical condition.
-        """)
-    
-    st.image("https://img.icons8.com/color/96/000000/diabetes.png", width=80)
-    st.markdown("""
-    <div style="text-align: center; margin-top: 20px;">
-        <small>Please login from the sidebar to access the full assessment tool</small>
-    </div>
-    """, unsafe_allow_html=True)
