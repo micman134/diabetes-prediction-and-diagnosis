@@ -143,11 +143,12 @@ st.markdown("""
 def initialize_firebase():
     try:
         if not firebase_admin._apps:
-            firebase_config = {
+            # Directly use the private key from secrets (it should maintain formatting)
+            cred = credentials.Certificate({
                 "type": st.secrets["firebase_creds"]["type"],
                 "project_id": st.secrets["firebase_creds"]["project_id"],
                 "private_key_id": st.secrets["firebase_creds"]["private_key_id"],
-                "private_key": st.secrets["firebase_creds"]["private_key"].replace('\\n', '\n'),
+                "private_key": st.secrets["firebase_creds"]["private_key"],
                 "client_email": st.secrets["firebase_creds"]["client_email"],
                 "client_id": st.secrets["firebase_creds"]["client_id"],
                 "auth_uri": st.secrets["firebase_creds"]["auth_uri"],
@@ -155,13 +156,12 @@ def initialize_firebase():
                 "auth_provider_x509_cert_url": st.secrets["firebase_creds"]["auth_provider_x509_cert_url"],
                 "client_x509_cert_url": st.secrets["firebase_creds"]["client_x509_cert_url"],
                 "universe_domain": st.secrets["firebase_creds"]["universe_domain"]
-            }
-            
-            cred = credentials.Certificate(firebase_config)
+            })
             firebase_admin.initialize_app(cred)
         return firestore.client()
     except Exception as e:
         st.error(f"Failed to initialize Firebase: {str(e)}")
+        st.error("Please check your Firebase credentials configuration")
         return None
 
 # Initialize Firebase connection
