@@ -21,6 +21,49 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# PWA Installation Prompt
+st.markdown("""
+<script>
+// Track whether the prompt has been shown
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Prevent the mini-infobar from appearing on mobile
+  e.preventDefault();
+  // Stash the event so it can be triggered later
+  deferredPrompt = e;
+  // Show the install button
+  document.getElementById('installContainer').style.display = 'block';
+});
+
+async function installApp() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      document.getElementById('installContainer').style.display = 'none';
+    }
+    deferredPrompt = null;
+  }
+}
+</script>
+
+<div id="installContainer" style="display: none; position: fixed; bottom: 20px; right: 20px; z-index: 1000;">
+  <button onclick="installApp()" style="
+    background-color: #2b5876;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  ">
+    Install App
+  </button>
+</div>
+""", unsafe_allow_html=True)
+
 st.markdown("""
 <style>
 #MainMenu {visibility: hidden;}
@@ -91,6 +134,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#2b5876">
+""", unsafe_allow_html=True)
 # Initialize Firebase
 def initialize_firebase():
     try:
