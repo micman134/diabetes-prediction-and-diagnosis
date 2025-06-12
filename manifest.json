@@ -1,0 +1,21 @@
+{
+  "name": "Diabetes Risk Predictor",
+  "short_name": "DiabetesApp",
+  "description": "Assess your diabetes risk with our prediction tool",
+  "icons": [
+    {
+      "src": "icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#2b5876",
+  "background_color": "#ffffff"
+}
