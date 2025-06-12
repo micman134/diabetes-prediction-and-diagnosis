@@ -10,6 +10,8 @@ from firebase_admin import credentials, firestore, auth
 from datetime import datetime
 import uuid
 import hashlib
+import requests
+import json
 
 # Set page config with improved metadata
 st.set_page_config(
@@ -124,11 +126,35 @@ def create_user(email, password):
         return None
 
 def authenticate_user(email, password):
+    if not email or not password:
+        st.error("Please enter both email and password")
+        return None
+    
     try:
+        # Firebase REST API key from your config
+        api_key = st.secrets["firebase_creds"]["api_key"]
+        
+        # Sign in with email and password using Firebase REST API
+        auth_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
+        auth_data = {
+            "email": email,
+            "password": password,
+            "returnSecureToken": True
+        }
+        
+        response = requests.post(auth_url, json=auth_data)
+        result = response.json()
+        
+        if 'error' in result:
+            st.error(f"Authentication failed: {result['error']['message']}")
+            return None
+        
+        # If successful, get the user details via Admin SDK
         user = auth.get_user_by_email(email)
         return user
+        
     except Exception as e:
-        st.error(f"Error authenticating user: {str(e)}")
+        st.error(f"Authentication error: {str(e)}")
         return None
 
 # Session state management
@@ -272,23 +298,21 @@ def login_page():
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Login"):
-                try:
+                if not email or not password:
+                    st.error("Please enter both email and password")
+                else:
                     user = authenticate_user(email, password)
                     if user:
                         st.session_state.user = user
                         st.session_state.history = get_user_history()
                         st.session_state.page = "app"
                         st.rerun()
-                    else:
-                        st.error("Invalid email or password")
-                except Exception as e:
-                    st.error(f"Login failed: {str(e)}")
         
         with col2:
             if st.button("Create Account"):
                 st.session_state.page = "signup"
                 st.rerun()
-
+                
 def signup_page():
     with st.sidebar:
         st.title("📝 Create Account")
