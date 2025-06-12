@@ -10,9 +10,6 @@ from firebase_admin import credentials, firestore, auth
 from datetime import datetime
 import uuid
 import hashlib
-import requests
-import json
-from google.cloud.firestore_v1 import FieldFilter  # Add this import
 
 # Set page config with improved metadata
 st.set_page_config(
@@ -21,58 +18,6 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="expanded"
 )
-
-# PWA Installation Prompt
-st.markdown("""
-<script>
-// Track whether the prompt has been shown
-let deferredPrompt;
-
-window.addEventListener('beforeinstallprompt', (e) => {
-  // Prevent the mini-infobar from appearing on mobile
-  e.preventDefault();
-  // Stash the event so it can be triggered later
-  deferredPrompt = e;
-  // Show the install button
-  document.getElementById('installContainer').style.display = 'block';
-});
-
-async function installApp() {
-  if (deferredPrompt) {
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      document.getElementById('installContainer').style.display = 'none';
-    }
-    deferredPrompt = null;
-  }
-}
-</script>
-
-<div id="installContainer" style="display: none; position: fixed; bottom: 20px; right: 20px; z-index: 1000;">
-  <button onclick="installApp()" style="
-    background-color: #2b5876;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 5px;
-    font-size: 16px;
-    cursor: pointer;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-  ">
-    Install App
-  </button>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-<style>
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
-header {visibility: hidden;}
-.stDeployButton {display: none;}
-</style>
-""", unsafe_allow_html=True)
 
 # Custom CSS for better styling
 st.markdown("""
@@ -135,20 +80,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-<link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#2b5876">
-""", unsafe_allow_html=True)
 # Initialize Firebase
 def initialize_firebase():
     try:
         if not firebase_admin._apps:
-            # Directly use the private key from secrets (it should maintain formatting)
-            cred = credentials.Certificate({
+            firebase_config = {
                 "type": st.secrets["firebase_creds"]["type"],
                 "project_id": st.secrets["firebase_creds"]["project_id"],
                 "private_key_id": st.secrets["firebase_creds"]["private_key_id"],
-                "private_key": st.secrets["firebase_creds"]["private_key"],
+                "private_key": st.secrets["firebase_creds"]["private_key"].replace('\\n', '\n'),
                 "client_email": st.secrets["firebase_creds"]["client_email"],
                 "client_id": st.secrets["firebase_creds"]["client_id"],
                 "auth_uri": st.secrets["firebase_creds"]["auth_uri"],
@@ -156,12 +96,13 @@ def initialize_firebase():
                 "auth_provider_x509_cert_url": st.secrets["firebase_creds"]["auth_provider_x509_cert_url"],
                 "client_x509_cert_url": st.secrets["firebase_creds"]["client_x509_cert_url"],
                 "universe_domain": st.secrets["firebase_creds"]["universe_domain"]
-            })
+            }
+            
+            cred = credentials.Certificate(firebase_config)
             firebase_admin.initialize_app(cred)
         return firestore.client()
     except Exception as e:
         st.error(f"Failed to initialize Firebase: {str(e)}")
-        st.error("Please check your Firebase credentials configuration")
         return None
 
 # Initialize Firebase connection
@@ -183,35 +124,11 @@ def create_user(email, password):
         return None
 
 def authenticate_user(email, password):
-    if not email or not password:
-        st.error("Please enter both email and password")
-        return None
-    
     try:
-        # Firebase REST API key from your config
-        api_key = st.secrets["firebase_creds"]["api_key"]
-        
-        # Sign in with email and password using Firebase REST API
-        auth_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
-        auth_data = {
-            "email": email,
-            "password": password,
-            "returnSecureToken": True
-        }
-        
-        response = requests.post(auth_url, json=auth_data)
-        result = response.json()
-        
-        if 'error' in result:
-            st.error(f"Authentication failed: {result['error']['message']}")
-            return None
-        
-        # If successful, get the user details via Admin SDK
         user = auth.get_user_by_email(email)
         return user
-        
     except Exception as e:
-        st.error(f"Authentication error: {str(e)}")
+        st.error(f"Error authenticating user: {str(e)}")
         return None
 
 # Session state management
@@ -234,7 +151,7 @@ def store_prediction(prediction_data):
             prediction_data['user_id'] = st.session_state.user.uid
             
             # Add a new document with a generated ID
-            doc_ref = db.collection("predictions").add(document_data=prediction_data)
+            doc_ref = db.collection("predictions").add(prediction_data)
             return True
         except Exception as e:
             st.error(f"Failed to store prediction: {str(e)}")
@@ -245,8 +162,7 @@ def store_prediction(prediction_data):
 def get_user_history():
     if db and st.session_state.user:
         try:
-            
-            predictions_ref = db.collection("predictions").where(filter=FieldFilter("user_id", "==", st.session_state.user.uid))
+            predictions_ref = db.collection("predictions").where("user_id", "==", st.session_state.user.uid)
             docs = predictions_ref.stream()
             
             history = []
@@ -356,21 +272,23 @@ def login_page():
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Login"):
-                if not email or not password:
-                    st.error("Please enter both email and password")
-                else:
+                try:
                     user = authenticate_user(email, password)
                     if user:
                         st.session_state.user = user
                         st.session_state.history = get_user_history()
                         st.session_state.page = "app"
                         st.rerun()
+                    else:
+                        st.error("Invalid email or password")
+                except Exception as e:
+                    st.error(f"Login failed: {str(e)}")
         
         with col2:
             if st.button("Create Account"):
                 st.session_state.page = "signup"
                 st.rerun()
-                
+
 def signup_page():
     with st.sidebar:
         st.title("📝 Create Account")
@@ -400,47 +318,6 @@ def signup_page():
             if st.button("Back to Login"):
                 st.session_state.page = "login"
                 st.rerun()
-
-# Add this new function before the main app flow
-def show_landing_page():
-    st.title("🩺 Diabetes Risk Predictor")
-    st.markdown("""
-    ## Welcome to the Diabetes Risk Assessment Tool
-    
-    This application helps you assess your risk of developing diabetes based on 
-    health indicators and lifestyle factors. Please login or create an account 
-    from the sidebar to get started.
-    """)
-    
-    with st.expander("📊 How it works"):
-        st.markdown("""
-        - Answer questions about your health and lifestyle
-        - Our advanced machine learning model analyzes your risk factors
-        - Get a personalized risk assessment with actionable recommendations
-        - Track your risk over time (when logged in)
-        """)
-    
-    with st.expander("🔬 About the Model"):
-        st.markdown("""
-        - **Algorithm**: LightGBM (Gradient Boosting)
-        - **Accuracy**: 84.59%
-        - **Training Data**: CDC Behavioral Risk Factor Surveillance System
-        - **Features**: 17 key health indicators including BMI, age, and lifestyle factors
-        """)
-    
-    with st.expander("👨‍⚕️ Medical Disclaimer"):
-        st.markdown("""
-        **Important:** This tool does not provide medical advice and is not a substitute 
-        for professional medical evaluation, diagnosis, or treatment. Always seek the 
-        advice of your physician with any questions you may have regarding a medical condition.
-        """)
-    
-    st.image("https://img.icons8.com/color/96/000000/diabetes.png", width=80)
-    st.markdown("""
-    <div style="text-align: center; margin-top: 20px;">
-        <small>Please login from the sidebar to access the full assessment tool</small>
-    </div>
-    """, unsafe_allow_html=True)
 
 # Main App Pages
 def main_app():
@@ -683,13 +560,13 @@ def main_app():
                     
                     try:
                         # Display model information
-                        #model_type = "LightGBM"
-                        #st.markdown(f"""
+                        model_type = "LightGBM"
+                        st.markdown(f"""
                         ### Model Information
-                        #**Algorithm:** {model_type}  
-                        #**Training Accuracy:** 84.59%  
-                        #**Training Weighted F1-Score:** 82.09%
-                        #""")
+                        **Algorithm:** {model_type}  
+                        **Training Accuracy:** 84.59%  
+                        **Training Weighted F1-Score:** 82.09%
+                        """)
                         
                         # 1. Scale the data
                         input_scaled = artifacts['scaler'].transform(input_data)
@@ -856,7 +733,7 @@ def main_app():
             - Algorithm: LightGBM
             - Objective: multiclass
             - Classes: [0.0, 1.0, 2.0]
-            - Features: 17 (selected via SelectKBest)
+            - Features: 15 (selected via SelectKBest)
             
             **Training Performance:**
             - Best model selected from: [XGBoost, LightGBM, RandomForest, LogisticRegression, DecisionTree]
@@ -864,7 +741,7 @@ def main_app():
             
             **Data Preprocessing:**
             - Standard Scaling: Yes
-            - Feature Selection: SelectKBest (k=17)
+            - Feature Selection: SelectKBest (k=15)
             - Class balancing: SMOTE
             
             **Training Data:**
@@ -915,11 +792,9 @@ def main_app():
 # Main App Flow
 if st.session_state.page == "login":
     login_page()
-    show_landing_page()  # Add this function call
-    
+    st.info("Please login from the sidebar to access the Diabetes Risk Predictor")
 elif st.session_state.page == "signup":
     signup_page()
-    show_landing_page()
+    st.info("Create a new account from the sidebar")
 elif st.session_state.page == "app":
     main_app()
-
