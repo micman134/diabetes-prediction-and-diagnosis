@@ -711,7 +711,7 @@ def main_app():
             
             if hasattr(artifacts['model'], 'feature_importances_'):
                 features = artifacts['selected_features']
-                importances = artifacts['model'].feature_importances_()
+                importances = artifacts['model'].feature_importances_
                 
                 # Sort features by importance
                 sorted_idx = np.argsort(importances)[::-1]
