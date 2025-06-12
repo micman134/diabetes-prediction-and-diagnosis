@@ -12,6 +12,7 @@ import uuid
 import hashlib
 import requests
 import json
+from google.cloud.firestore_v1 import FieldFilter  # Add this import
 
 # Set page config with improved metadata
 st.set_page_config(
@@ -233,7 +234,7 @@ def store_prediction(prediction_data):
             prediction_data['user_id'] = st.session_state.user.uid
             
             # Add a new document with a generated ID
-            doc_ref = db.collection("predictions").add(prediction_data)
+            doc_ref = db.collection("predictions").add(document_data=prediction_data)
             return True
         except Exception as e:
             st.error(f"Failed to store prediction: {str(e)}")
@@ -244,7 +245,8 @@ def store_prediction(prediction_data):
 def get_user_history():
     if db and st.session_state.user:
         try:
-            predictions_ref = db.collection("predictions").where("user_id", "==", st.session_state.user.uid)
+            
+            predictions_ref = db.collection("predictions").where(filter=FieldFilter("user_id", "==", st.session_state.user.uid))
             docs = predictions_ref.stream()
             
             history = []
