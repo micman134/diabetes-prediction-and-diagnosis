@@ -870,7 +870,7 @@ if st.session_state.page == "login":
     
 elif st.session_state.page == "signup":
     signup_page()
-    st.info("Create a new account from the sidebar")
+    show_landing_page()
 elif st.session_state.page == "app":
     main_app()
 
