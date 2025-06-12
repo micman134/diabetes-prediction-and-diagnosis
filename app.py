@@ -425,7 +425,7 @@ def show_landing_page():
         - **Algorithm**: LightGBM (Gradient Boosting)
         - **Accuracy**: 84.59%
         - **Training Data**: CDC Behavioral Risk Factor Surveillance System
-        - **Features**: 15 key health indicators including BMI, age, and lifestyle factors
+        - **Features**: 17 key health indicators including BMI, age, and lifestyle factors
         """)
     
     with st.expander("👨‍⚕️ Medical Disclaimer"):
