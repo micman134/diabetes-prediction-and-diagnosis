@@ -230,7 +230,6 @@ def authenticate_user(email, password):
         else:
             st.error(f"Login failed: {error_msg}")
         return None
-
 def reset_password(email):
     try:
         auth_client = pb.auth()
