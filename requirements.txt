@@ -7,3 +7,4 @@ xgboost==3.0.2
 plotly
 lightgbm==4.5.0
 firebase-admin
+pyrebase4
