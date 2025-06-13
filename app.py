@@ -10,6 +10,7 @@ from firebase_admin import credentials, firestore, auth
 from datetime import datetime
 import uuid
 import hashlib
+import pyrebase
 
 # Set page config with improved metadata
 st.set_page_config(
@@ -130,7 +131,7 @@ def show_landing_page():
     </div>
     """, unsafe_allow_html=True)
 
-# Initialize Firebase
+# Initialize Firebase Admin
 def initialize_firebase():
     try:
         if not firebase_admin._apps:
@@ -158,28 +159,85 @@ def initialize_firebase():
 # Initialize Firebase connection
 db = initialize_firebase()
 
+# Initialize Pyrebase for client-side authentication
+firebaseConfig = {
+    "apiKey": st.secrets["firebase_creds"]["api_key"],
+    "authDomain": f"{st.secrets['firebase_creds']['project_id']}.firebaseapp.com",
+    "projectId": st.secrets["firebase_creds"]["project_id"],
+    "storageBucket": f"{st.secrets['firebase_creds']['project_id']}.appspot.com",
+    "messagingSenderId": st.secrets["firebase_creds"]["messaging_sender_id"],
+    "appId": st.secrets["firebase_creds"]["app_id"],
+    "databaseURL": ""
+}
+
+pb = pyrebase.initialize_app(firebaseConfig)
+
 # Authentication functions
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+def is_password_complex(password):
+    return (len(password) >= 8 and 
+            any(c.isupper() for c in password) and
+            any(c.isdigit() for c in password))
 
 def create_user(email, password):
     try:
-        user = auth.create_user(
-            email=email,
-            password=password
-        )
-        return user
+        if not is_password_complex(password):
+            st.error("Password must be at least 8 characters with at least one uppercase letter and one number")
+            return None
+            
+        # Create user with client SDK
+        auth_client = pb.auth()
+        user = auth_client.create_user_with_email_and_password(email, password)
+        
+        # Get user details with Admin SDK
+        admin_user = auth.get_user(user['localId'])
+        
+        # Send email verification
+        auth_client.send_email_verification(user['idToken'])
+        st.success("Account created successfully! Please check your email for verification.")
+        return admin_user
     except Exception as e:
-        st.error(f"Error creating user: {str(e)}")
+        error_msg = str(e)
+        if "EMAIL_EXISTS" in error_msg:
+            st.error("This email is already registered. Please login instead.")
+        elif "WEAK_PASSWORD" in error_msg:
+            st.error("Password should be at least 6 characters")
+        else:
+            st.error(f"Account creation failed: {error_msg}")
         return None
 
 def authenticate_user(email, password):
     try:
-        user = auth.get_user_by_email(email)
-        return user
+        # Authenticate with client SDK
+        auth_client = pb.auth()
+        user = auth_client.sign_in_with_email_and_password(email, password)
+        
+        # Check if email is verified
+        user_info = auth_client.get_account_info(user['idToken'])
+        if not user_info['users'][0]['emailVerified']:
+            st.warning("Please verify your email address first. Check your inbox for the verification email.")
+            auth_client.send_email_verification(user['idToken'])
+            return None
+            
+        # Get user details with Admin SDK
+        admin_user = auth.get_user(user['localId'])
+        return admin_user
     except Exception as e:
-        st.error(f"Error authenticating user: {str(e)}")
+        error_msg = str(e)
+        if "INVALID_PASSWORD" in error_msg or "EMAIL_NOT_FOUND" in error_msg:
+            st.error("Invalid email or password")
+        elif "TOO_MANY_ATTEMPTS_TRY_LATER" in error_msg:
+            st.error("Too many attempts. Please try again later.")
+        else:
+            st.error(f"Login failed: {error_msg}")
         return None
+
+def reset_password(email):
+    try:
+        auth_client = pb.auth()
+        auth_client.send_password_reset_email(email)
+        st.success("Password reset email sent. Please check your inbox.")
+    except Exception as e:
+        st.error(f"Failed to send reset email: {str(e)}")
 
 # Session state management
 if 'user' not in st.session_state:
@@ -329,15 +387,15 @@ def login_page():
                         st.session_state.history = get_user_history()
                         st.session_state.page = "app"
                         st.rerun()
-                    else:
-                        st.error("Invalid email or password")
-                except Exception as e:
-                    st.error(f"Login failed: {str(e)}")
         
         with col2:
             if st.button("Create Account"):
                 st.session_state.page = "signup"
                 st.rerun()
+        
+        if st.button("Forgot Password?"):
+            st.session_state.page = "reset_password"
+            st.rerun()
 
 def signup_page():
     with st.sidebar:
@@ -351,18 +409,29 @@ def signup_page():
             if st.button("Sign Up"):
                 if password != confirm_password:
                     st.error("Passwords don't match!")
-                elif len(password) < 6:
-                    st.error("Password must be at least 6 characters")
+                elif not is_password_complex(password):
+                    st.error("Password must be at least 8 characters with one uppercase letter and one number")
                 else:
-                    try:
-                        user = create_user(email, password)
-                        if user:
-                            st.session_state.user = user
-                            st.session_state.page = "app"
-                            st.success("Account created successfully!")
-                            st.rerun()
-                    except Exception as e:
-                        st.error(f"Account creation failed: {str(e)}")
+                    user = create_user(email, password)
+                    if user:
+                        st.session_state.user = user
+                        st.session_state.page = "app"
+                        st.rerun()
+        
+        with col2:
+            if st.button("Back to Login"):
+                st.session_state.page = "login"
+                st.rerun()
+
+def reset_password_page():
+    with st.sidebar:
+        st.title("🔑 Reset Password")
+        email = st.text_input("Enter your email")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Send Reset Link"):
+                reset_password(email)
         
         with col2:
             if st.button("Back to Login"):
@@ -845,6 +914,9 @@ if st.session_state.page == "login":
     show_landing_page()
 elif st.session_state.page == "signup":
     signup_page()
+    show_landing_page()
+elif st.session_state.page == "reset_password":
+    reset_password_page()
     show_landing_page()
 elif st.session_state.page == "app":
     main_app()
