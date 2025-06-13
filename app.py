@@ -131,6 +131,9 @@ def show_landing_page():
     """, unsafe_allow_html=True)
 
 # Initialize Firebase
+# ... (keep all the existing imports and setup code)
+
+# Initialize Firebase
 def initialize_firebase():
     try:
         if not firebase_admin._apps:
@@ -164,10 +167,31 @@ def hash_password(password):
 
 def create_user(email, password):
     try:
+        # First check if user already exists in our collection
+        users_ref = db.collection("users")
+        query = users_ref.where("email", "==", email).limit(1).get()
+        
+        if len(query) > 0:
+            st.error("Email already exists!")
+            return None
+            
+        # Create user in Firebase Auth
         user = auth.create_user(
             email=email,
             password=password
         )
+        
+        # Store user in our users collection
+        user_data = {
+            "uid": user.uid,
+            "email": email,
+            "password_hash": hash_password(password),  # Store hashed password
+            "created_at": datetime.now().isoformat(),
+            "last_login": None
+        }
+        
+        users_ref.document(user.uid).set(user_data)
+        
         return user
     except Exception as e:
         st.error(f"Error creating user: {str(e)}")
@@ -175,12 +199,36 @@ def create_user(email, password):
 
 def authenticate_user(email, password):
     try:
+        # First check our users collection
+        users_ref = db.collection("users")
+        query = users_ref.where("email", "==", email).limit(1).get()
+        
+        if len(query) == 0:
+            st.error("Invalid email or password")
+            return None
+            
+        user_data = query[0].to_dict()
+        stored_hash = user_data.get("password_hash")
+        
+        # Verify password hash
+        if hash_password(password) != stored_hash:
+            st.error("Invalid email or password")
+            return None
+            
+        # Get the Firebase Auth user
         user = auth.get_user_by_email(email)
+        
+        # Update last login time
+        users_ref.document(user.uid).update({
+            "last_login": datetime.now().isoformat()
+        })
+        
         return user
     except Exception as e:
         st.error(f"Error authenticating user: {str(e)}")
         return None
 
+# ... (rest of the existing code remains the same)
 # Session state management
 if 'user' not in st.session_state:
     st.session_state.user = None
