@@ -10,6 +10,7 @@ from firebase_admin import credentials, firestore, auth
 from datetime import datetime
 import uuid
 import hashlib
+import requests # Import the requests library
 
 # Set page config with improved metadata
 st.set_page_config(
@@ -30,7 +31,6 @@ header {visibility: hidden;}
 
 # Custom CSS for better styling
 st.markdown("""
-<style>
     .stNumberInput, .stSelectbox {
         margin-bottom: 15px;
     }
@@ -86,7 +86,6 @@ st.markdown("""
         border-radius: 10px;
         background-color: #f8f9fa;
     }
-</style>
 """, unsafe_allow_html=True)
 
 # Add this new function before the main app flow
@@ -159,9 +158,6 @@ def initialize_firebase():
 db = initialize_firebase()
 
 # Authentication functions
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
-
 def create_user(email, password):
     try:
         user = auth.create_user(
@@ -174,9 +170,37 @@ def create_user(email, password):
         return None
 
 def authenticate_user(email, password):
+    api_key = st.secrets["FIREBASE_WEB_API_KEY"]
+    REST_API_SIGN_IN_URL = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
+    
     try:
-        user = auth.get_user_by_email(email)
+        payload = {
+            "email": email,
+            "password": password,
+            "returnSecureToken": True
+        }
+        
+        response = requests.post(REST_API_SIGN_IN_URL, json=payload)
+        response.raise_for_status() # Raise an exception for HTTP errors (4xx or 5xx)
+        
+        data = response.json()
+        id_token = data['idToken']
+        
+        # Verify the ID token using the Firebase Admin SDK
+        # This confirms the user is valid and provides the user object
+        user = auth.verify_id_token(id_token)
         return user
+    except requests.exceptions.RequestException as e:
+        if response.status_code == 400:
+            error_data = response.json().get('error', {})
+            error_message = error_data.get('message', 'An unknown error occurred.')
+            if "EMAIL_NOT_FOUND" in error_message or "INVALID_LOGIN_CREDENTIALS" in error_message:
+                st.error("Invalid email or password.")
+            else:
+                st.error(f"Firebase sign-in error: {error_message}")
+        else:
+            st.error(f"Network or API error during authentication: {str(e)}")
+        return None
     except Exception as e:
         st.error(f"Error authenticating user: {str(e)}")
         return None
@@ -198,7 +222,7 @@ def store_prediction(prediction_data):
                 prediction_data['timestamp'] = datetime.now().isoformat()
             
             # Add user ID to prediction data
-            prediction_data['user_id'] = st.session_state.user.uid
+            prediction_data['user_id'] = st.session_state.user['uid'] # Access 'uid' from the dict returned by verify_id_token
             
             # Add a new document with a generated ID
             doc_ref = db.collection("predictions").add(prediction_data)
@@ -212,7 +236,7 @@ def store_prediction(prediction_data):
 def get_user_history():
     if db and st.session_state.user:
         try:
-            predictions_ref = db.collection("predictions").where("user_id", "==", st.session_state.user.uid)
+            predictions_ref = db.collection("predictions").where("user_id", "==", st.session_state.user['uid'])
             docs = predictions_ref.stream()
             
             history = []
@@ -322,17 +346,18 @@ def login_page():
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Login"):
-                try:
-                    user = authenticate_user(email, password)
-                    if user:
-                        st.session_state.user = user
+                # Clear previous error messages
+                st.session_state.auth_error = "" 
+                if not email or not password:
+                    st.error("Please enter both email and password.")
+                else:
+                    user_info = authenticate_user(email, password)
+                    if user_info:
+                        st.session_state.user = user_info # user_info is a dictionary from verify_id_token
                         st.session_state.history = get_user_history()
                         st.session_state.page = "app"
                         st.rerun()
-                    else:
-                        st.error("Invalid email or password")
-                except Exception as e:
-                    st.error(f"Login failed: {str(e)}")
+                    # Error message is handled within authenticate_user function
         
         with col2:
             if st.button("Create Account"):
@@ -349,7 +374,9 @@ def signup_page():
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Sign Up"):
-                if password != confirm_password:
+                if not email or not password or not confirm_password:
+                    st.error("Please fill in all fields.")
+                elif password != confirm_password:
                     st.error("Passwords don't match!")
                 elif len(password) < 6:
                     st.error("Password must be at least 6 characters")
@@ -357,10 +384,16 @@ def signup_page():
                     try:
                         user = create_user(email, password)
                         if user:
-                            st.session_state.user = user
-                            st.session_state.page = "app"
-                            st.success("Account created successfully!")
-                            st.rerun()
+                            # After creating, immediately log them in
+                            user_info = authenticate_user(email, password)
+                            if user_info:
+                                st.session_state.user = user_info
+                                st.session_state.page = "app"
+                                st.success("Account created and logged in successfully!")
+                                st.rerun()
+                            else:
+                                st.error("Account created, but automatic login failed. Please try logging in.")
+                        # Error message for create_user is handled within the function
                     except Exception as e:
                         st.error(f"Account creation failed: {str(e)}")
         
@@ -374,7 +407,7 @@ def main_app():
     # Sidebar navigation and user info
     with st.sidebar:
         if st.session_state.user:
-            st.markdown(f"### 👤 {st.session_state.user.email}")
+            st.markdown(f"### 👤 {st.session_state.user['email']}") # Access 'email' from the dict
             if st.button("Logout"):
                 st.session_state.user = None
                 st.session_state.page = "login"
@@ -383,12 +416,12 @@ def main_app():
         
         st.image("https://img.icons8.com/color/96/000000/diabetes.png", width=80)
         menu_option = st.radio("Navigation Menu",
-                             ["📊 Prediction", 
-                              "📋 History",
-                              "🔍 Model Analysis", 
-                              "ℹ️ About"],
-                             index=0,
-                             label_visibility="visible")
+                               ["📊 Prediction", 
+                                 "📋 History",
+                                 "🔍 Model Analysis", 
+                                 "ℹ️ About"],
+                                 index=0,
+                                 label_visibility="visible")
     
     # Prediction History Page
     if menu_option == "📋 History":
@@ -812,39 +845,26 @@ def main_app():
         
         with st.expander("📚 Purpose"):
             st.markdown("""
-            - Provide early risk assessment for diabetes
-            - Increase awareness of diabetes risk factors
-            - Encourage preventive healthcare measures
-            - Support clinical decision-making (but not replace it)
+            - Provide early risk assessment for diabetes.
+            - Educate users about key risk factors and prevention.
+            - Offer personalized recommendations to mitigate risk.
+            - Enable users to track their risk over time.
             """)
         
-        with st.expander("👨‍⚕️ Medical Disclaimer"):
+        with st.expander("🧑‍💻 Developed By"):
             st.markdown("""
-            **Important:** This tool does not provide medical advice and is not a substitute 
-            for professional medical evaluation, diagnosis, or treatment. Always seek the 
-            advice of your physician or other qualified health provider with any questions 
-            you may have regarding a medical condition.
+            This application was developed as a project to demonstrate machine learning deployment and user authentication.
             
-            The predictions are based on statistical models and may not be accurate for all 
-            individuals. Many factors beyond those included in this tool can affect diabetes risk.
-            """)
-        
-        with st.expander("🛠️ Development Team"):
-            st.markdown("""
-            - **Data Scientists**: [], []
-            - **Medical Advisors**: Dr. [], Dr. []
-            - **Developers**: [], []
-            
-            **Version**: 1.2.0
-            **Last Updated**: June 2024
+            **Disclaimer:** This tool is for informational purposes only and is not a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.
             """)
 
-# Main App Flow
-if st.session_state.page == "login":
-    login_page()
-    show_landing_page()
-elif st.session_state.page == "signup":
-    signup_page()
-    show_landing_page()
-elif st.session_state.page == "app":
+# Control the page flow
+if st.session_state.user:
     main_app()
+else:
+    if st.session_state.page == "login":
+        show_landing_page() # Show landing page content in the main area
+        login_page() # Show login form in the sidebar
+    elif st.session_state.page == "signup":
+        show_landing_page() # Show landing page content in the main area
+        signup_page() # Show signup form in the sidebar
