@@ -659,13 +659,13 @@ def main_app():
                     
                     try:
                         #Display model information
-                        model_type = "LightGBM"
-                        st.markdown(f"""
-                        ### Model Information
-                        **Algorithm:** {model_type}  
-                        **Training Accuracy:** 84.59%  
-                        **Training Weighted F1-Score:** 82.09%
-                        """)
+                        # model_type = "LightGBM"
+                        # st.markdown(f"""
+                        # ### Model Information
+                        # **Algorithm:** {model_type}  
+                        # **Training Accuracy:** 84.59%  
+                        # **Training Weighted F1-Score:** 82.09%
+                        # """)
                         
                         # 1. Scale the data
                         input_scaled = artifacts['scaler'].transform(input_data)
