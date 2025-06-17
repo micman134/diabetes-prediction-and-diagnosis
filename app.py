@@ -879,15 +879,7 @@ def main_app():
             individuals. Many factors beyond those included in this tool can affect diabetes risk.
             """)
         
-        with st.expander("🛠️ Development Team"):
-            st.markdown("""
-            - **Data Scientists**: [], []
-            - **Medical Advisors**: Dr. [], Dr. []
-            - **Developers**: [], []
-            
-            **Version**: 1.2.0
-            **Last Updated**: June 2024
-            """)
+        
 
 # Main App Flow
 if st.session_state.page == "login":
