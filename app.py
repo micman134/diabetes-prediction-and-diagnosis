@@ -488,7 +488,8 @@ def main_app():
                         height=300,
                     )
                     
-                    st.plotly_chart(fig, use_container_width=True)
+                    #st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, key=f"history_chart_{pred['id']}")
                 
                 if 'user_inputs' in pred:
                     st.markdown("**Input Parameters:**")
@@ -708,7 +709,8 @@ def main_app():
                             height=300,
                         )
                         
-                        st.plotly_chart(fig, use_container_width=True)
+                        #st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, use_container_width=True, key="prediction_result_chart")
                         st.markdown("### 💡 Recommended Actions")
                         st.markdown(get_prevention_tips(prediction))
                         
